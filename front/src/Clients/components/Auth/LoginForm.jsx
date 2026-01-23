@@ -78,7 +78,7 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="w-full max-w-md mx-auto"  >
       <div className="p-8 bg-white shadow-2xl rounded-2xl" style={{ border: '1px solid var(--gray-dark)' }}>
         <div className="mb-8 text-center">
           <h2 className="mb-2 text-3xl font-black" style={{ color: 'var(--dark)' }}>
