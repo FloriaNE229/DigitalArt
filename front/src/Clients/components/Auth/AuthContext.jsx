@@ -43,26 +43,40 @@ export function AuthProvider({ children }) {
         // setLoading(false);
     }, []);
 
-    const refreshAccessToken = async()=>{
-        const response = await fetch("/api/refresh", {
-            method: "GET",
-            credentials: 'include',
-            headers: {
-                'Accept': 'application/json',
+    const refreshAccessToken = async () => {
+        try {
+            const response = await fetch("/api/refresh", {
+                method: "GET",
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                const errorDetails = await response.json().catch(() => ({}));
+                throw new Error(errorDetails.message || `Erreur serveur: ${response.status}`);
             }
-        });
-        if(!response.ok){
-            throw new Error("une erreur est survenue", error);
+
+            const data = await response.json();
+
+            if (!data.user || !data.accessToken) {
+                throw new Error("Réponse du serveur incomplète (user ou accessToken manquant)");
+            }
+
+            setUser(data.user);
+            setAccessToken(data.accessToken);
+        } catch (error) {
+            console.error("Échec du rafraîchissement du token :", error.message);
+
+            // Logique de déconnexion si le refresh échoue
+            setUser(null);
+            setAccessToken(null);
+
+            throw error; // Permet au composant appelant de réagir
         }
-        const data = await response.json();
-        if (!data.user) {
-            throw new Error("missing user");
-        }
-        if (!data.accesToken) {
-            throw new Error("missing accessToken");
-        }
-        setUser(data.user);
-        setAccessToken(data.accesToken);
+
+
     }
 
     const login = (userData, token) => {

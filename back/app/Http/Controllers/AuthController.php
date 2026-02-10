@@ -13,15 +13,16 @@ use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
-    public function login(Request $request){
+    public function login(Request $request)
+    {
         $credentials = $request->validate([
             'email' => ['required', 'email', 'max:50'],
             'password' => ['required', Password::min(6)]
         ]);
         if (! $token = auth('api')->attempt($credentials)) {
-            return response()->json(['error'=> 'Unauthorized'], 401);
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
-        $user = User::where('email',$credentials['email'])->first();
+        $user = User::where('email', $credentials['email'])->first();
         // return $this->respond_with_token($token,$user);
         // $credentials = $request->only('email', 'password');
         // $credentials
@@ -32,17 +33,19 @@ class AuthController extends Controller
         return $this->respond_with_token($token, $user);
     }
 
-    public function register(Request $request){
+    public function register(Request $request)
+    {
         $credentials = $request->validate([
             'nom' => ['required', 'max:50'],
             'prenom' => ['required', 'max:50'],
-            'email' => ['required', 'email' , 'unique:users', 'max:50'],
+            'email' => ['required', 'email', 'unique:users', 'max:50'],
             'password' => ['required', 'confirmed', Password::min(6)],
             'role' => ['required'],
             'photo_profil' => ['mimes:jpg,jpeg,svg,png']
         ]);
-    
+
         $user = User::create($credentials);
+        
         $token = auth('api')->login($user);
 
         // céer l'utilisateur lui générer un accesToken
@@ -50,11 +53,10 @@ class AuthController extends Controller
         return $this->respond_with_token($token, $user);
     }
 
-    public function logout(){
+    public function logout() {}
 
-    }
-
-    public function refresh(Request $request){
+    public function refresh(Request $request)
+    {
         $rawtoken = $request->cookie('refresh_token');
 
         if (!$rawtoken) {
@@ -62,34 +64,39 @@ class AuthController extends Controller
         }
 
         $hash = hash('sha256', $rawtoken);
-        $refresh_token = DB::table('refreshed_tokens')->where('refresh_token_hash', $hash)->where('expire_at', '>', now())->first();
+        $refresh_token = RefreshedToken::where('refresh_token_hash', $hash)->where('expire_at', '>', now())->first();
 
         if (!$refresh_token) {
             return response()->json(['error' => 'Invalid or expired refreshed_ token'], 401);
         }
-        
-        DB::table('refreshed_token')->where('refreshed_token',$hash)->where('expire_at', '>', now())->delete();
+
 
         $user = User::find($refresh_token->user_id);
+        if (!$user) {
+            return response()->json(['error' => 'User no longer exists'], 401);
+        }
         $newAccessToken = auth('api')->login($user);
 
-        return $this->respond_with_token($newAccessToken,$user);
+        $refresh_token->delete();
+
+        return $this->respond_with_token($newAccessToken, $user);
     }
 
-    protected function respond_with_token($token, $user){
+    protected function respond_with_token($token, $user)
+    {
         $refresh_token = bin2hex(random_bytes(64));
-        $refresh_token_hash = hash('sha256',$refresh_token);
+        $refresh_token_hash = hash('sha256', $refresh_token);
         RefreshedToken::create([
             'user_id' => $user->id,
             'refresh_token_hash' => $refresh_token_hash,
             'expire_at' => now()->addDay(30)
         ]);
-        $cookie = cookie('refresh_token', $refresh_token, 60 *24*30, '/', null, false, true, false, null );
+        $cookie = cookie('refresh_token', $refresh_token, 60 * 24 * 30, '/', null, false, true, false, null);
         return response()->json([
-            'access_token' => $token,
+            'accessToken' => $token,
             'token_type' => 'Bearer',
             'expires_in' => auth('api')->factory()->getTTL() * 60,
-            'user_data' => $user
+            'user' => $user
         ])->withCookie($cookie);
     }
 }

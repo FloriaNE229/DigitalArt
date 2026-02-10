@@ -1,8 +1,9 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 
 const AuthComponent = ({children})=>{
 
+    const {pathname} = useLocation()
     const {Loading, user} = useAuth();
     if (Loading) {
         return (
@@ -13,8 +14,9 @@ const AuthComponent = ({children})=>{
         )
     }
     else {
+
         if(user === null){
-            return <Navigate to="/login" replace />
+            return <Navigate to={`/login?redirect=${pathname}`} replace />;
         }
     }
     return children;

@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from "../../components/Auth/AuthContext";
 
 const Login = () => {
     const navigate = useNavigate();
+    const { login } = useAuth();
+    const [searchParams,setSearchParmas] = useSearchParams();
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
@@ -47,11 +50,13 @@ const Login = () => {
         e.preventDefault();
 
         const newErrors = validate();
+        const callbackUrl = searchParams.get('redirect') || '/'
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
             return;
         }
 
+        if (loading) return;
         setLoading(true);
 
         try {
@@ -64,19 +69,22 @@ const Login = () => {
                 body: JSON.stringify(formData)
             })
             if (!response.ok) {
-
+                // Si l'API renvoie des erreurs de validation (ex: code 422)
+                if (response.status === 422 && data.errors) {
+                    setErrors({ ...errors, submit: data.errors });
+                }
+                throw new Error(data.message || `Erreur code: ${response.status}`);
             }
-            data = response.json();
+            const data = await response.json();
+            if (!data.user || !data.accessToken) {
+                throw new Error("User undefined or accessToken invalid");
+            }
             console.log(data);
-
+            login(data.user, data.accessToken);
+            navigate(callbackUrl);
         } catch (error) {
-            console.error("Une erreur: ", error);
+            console.error("Erreur lors de l'inscription:", error.message);
         }
-        setTimeout(() => {
-            console.log("Form submitted:", { ...formData });
-            alert(` Connection réussie`);
-            setLoading(false);
-        }, 2000);
     };
     return (
         <div className="flex items-center justify-center min-h-screen p-4" style={{ backgroundColor: '#f8f9fa' }}>
