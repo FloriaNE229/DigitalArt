@@ -16,38 +16,9 @@ export default function Hero() {
             </span>
           </h1>
 
-          <p className="max-w-2xl mx-auto mb-10 text-lg md:text-xl" style={{ color: 'var(--dark)', opacity: 0.7 }}>
+          <p className="max-w-2xl mx-auto mb-12 text-lg md:text-xl" style={{ color: 'var(--dark)', opacity: 0.7 }}>
             La plateforme de confiance qui connecte les particuliers aux meilleurs professionnels du bâtiment pour des projets réussis.
           </p>
-
-          <div className="flex flex-col items-center max-w-3xl gap-3 p-2 mx-auto mb-10 bg-white shadow-xl sm:flex-row rounded-2xl" style={{ border: '1px solid var(--gray-dark)' }}>
-            <div className="flex items-center flex-1 w-full gap-3 px-4 py-3 rounded-xl" style={{ backgroundColor: 'var(--gray)' }}>
-              <svg className="w-5 h-5" style={{ color: 'var(--primary-light)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Ex: Rénovation cuisine, Plombier..."
-                className="flex-1 text-sm bg-transparent outline-none"
-                style={{ color: 'var(--dark)' }}
-              />
-            </div>
-            <div className="flex items-center flex-1 w-full gap-3 px-4 py-3 rounded-xl" style={{ backgroundColor: 'var(--gray)' }}>
-              <svg className="w-5 h-5" style={{ color: 'var(--primary-light)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Ville ou Code Postal"
-                className="flex-1 text-sm bg-transparent outline-none"
-                style={{ color: 'var(--dark)' }}
-              />
-            </div>
-            <button className="w-full px-6 py-3 text-sm font-bold text-white transition-all shadow-md sm:w-auto rounded-xl whitespace-nowrap hover:shadow-lg" style={{ background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))' }}>
-              Rechercher
-            </button>
-          </div>
 
           <div className="flex flex-wrap items-center justify-center gap-6 mb-12 text-sm" style={{ color: 'var(--dark)' }}>
             <div className="flex items-center gap-2">

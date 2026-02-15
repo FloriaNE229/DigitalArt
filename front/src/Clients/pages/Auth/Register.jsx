@@ -1,9 +1,16 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, User, Check, Briefcase, Phone, UserCircle, Hammer } from "lucide-react";
 
 const Register = () => {
-  const [userType, setUserType] = useState("client"); // "client" ou "artisan"
+  const [searchParams] = useSearchParams();
+  
+  // Initialiser directement userType avec la valeur de l'URL (lazy initialization)
+  const [userType, setUserType] = useState(() => {
+    const type = searchParams.get('type');
+    return type === 'artisan' ? 'artisan' : 'client';
+  });
+  
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: "",

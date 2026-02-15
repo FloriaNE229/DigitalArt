@@ -1,6 +1,16 @@
 import { CheckCircle, Shield, Star, Users, Clock, TrendingUp, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function CTASection() {
+  const navigate = useNavigate();
+
+  const handleCreateWorkshop = () => {
+    // Pour l'instant, on redirige vers register en mode artisan
+    // Plus tard, on pourra vérifier si l'utilisateur est connecté
+    // et le rediriger soit vers register soit vers la page de création d'atelier
+    navigate('/register?type=artisan');
+  };
+
   return (
     <section className="relative py-20 overflow-hidden" style={{ background: 'linear-gradient(135deg, var(--gray) 0%, var(--light) 50%, var(--gray) 100%)' }}>
       <div className="relative w-full max-w-6xl px-4 mx-auto sm:px-6 lg:px-8">
@@ -22,13 +32,14 @@ export default function CTASection() {
             Rejoignez notre communauté d'artisans qualifiés et multipliez vos opportunités d'affaires.
           </p>
 
-          <div className="flex flex-col items-center justify-center max-w-2xl gap-4 mx-auto mb-16 sm:flex-row">
-            <button className="flex items-center justify-center gap-2 px-8 py-3 text-sm font-bold text-white transition-all shadow-md rounded-xl hover:shadow-lg group" style={{ background: 'linear-gradient(135deg, #ff7e5f, #ff6b4a)' }}>
+          <div className="flex items-center justify-center mb-16">
+            <button 
+              onClick={handleCreateWorkshop}
+              className="flex items-center justify-center gap-2 px-8 py-3 text-sm font-bold text-white transition-all shadow-md rounded-xl hover:shadow-lg group" 
+              style={{ background: 'linear-gradient(135deg, #ff7e5f, #ff6b4a)' }}
+            >
               Créer mon atelier
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-            </button>
-            <button className="flex items-center justify-center gap-2 px-8 py-3 text-sm font-bold transition-all border rounded-xl hover:shadow-md" style={{ backgroundColor: 'var(--light)', color: '#ff7e5f', borderColor: '#ff7e5f' }}>
-              <span>En savoir plus</span>
             </button>
           </div>
 
