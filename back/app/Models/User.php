@@ -69,4 +69,13 @@ class User extends Authenticatable implements JWTSubject
     {
         return [];
     }
+
+    /**
+ * Relation avec le profil artisan
+ */
+public function artisan()
+{
+    return $this->hasOne(Artisan::class);
+}
+
 }

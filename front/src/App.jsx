@@ -46,272 +46,283 @@ import AdminAppointments from "./Admin/pages/AdminAppointments";
 import AdminReviews from "./Admin/pages/AdminReviews";
 import AdminSettings from "./Admin/pages/AdminSettings";
 import AdminLayout from "./Admin/layouts/AdminLayout";
+import { AuthProvider } from "./Clients/components/Auth/AuthContext";
+import AuthComponent from "./Clients/components/Auth/AuthComponent";
 
 function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        {/* ========== ROUTES CLIENT ========== */}
-        
-        {/* Home */}
-        <Route
-          path="/"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <Home />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+    return (
+        <AuthProvider>
+            <BrowserRouter>
+                <Routes>
+                    {/* ========== ROUTES CLIENT ========== */}
 
-        {/* Auth */}
-        <Route
-          path="/login"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <Login />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    {/* Home */}
+                    <Route
+                        path="/"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <Home />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        <Route
-          path="/register"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <Register />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    {/* Auth */}
+                    <Route
+                        path="/login"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <Login />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        <Route
-          path="/forgot-password"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <ForgotPassword />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    <Route
+                        path="/register"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow pt-20 md:pt-20 ">
+                                    <Register />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        {/* Catalog - Artisans */}
-        <Route
-          path="/artisans"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <ArtisansList />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    <Route
+                        path="/forgot-password"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <ForgotPassword />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        <Route
-          path="/artisan/:id"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <ArtisanDetail />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    {/* Catalog - Artisans */}
+                    <Route
+                        path="/artisans"
+                        element={
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <ArtisansList />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
+                        }
+                    />
 
-        {/* Services */}
-        <Route
-          path="/my-services"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <MyServices />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    <Route
+                        path="/artisan/:id"
+                        element={
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <ArtisanDetail />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
+                        }
+                    />
 
-        <Route
-          path="/services/request"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <ServiceRequest />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    {/* Services */}
+                    <Route
+                        path="/my-services"
+                        element={
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <MyServices />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
 
-        <Route
-          path="/services/request/:artisanId"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <ServiceRequest />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                        }
+                    />
 
-        <Route
-          path="/services/immediate"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <ServiceImmediate />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    <Route
+                        path="/services/request"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <ServiceRequest />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        {/* Appointments */}
-        <Route
-          path="/my-appointments"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <MyAppointments />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    <Route
+                        path="/services/request/:artisanId"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <ServiceRequest />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        <Route
-          path="/appointments/book"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <BookAppointment />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    <Route
+                        path="/services/immediate"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <ServiceImmediate />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        <Route
-          path="/appointments/book/:artisanId"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <BookAppointment />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    {/* Appointments */}
+                    <Route
+                        path="/my-appointments"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <MyAppointments />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        {/* Profile */}
-        <Route
-          path="/profile"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <ClientProfile />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    <Route
+                        path="/appointments/book"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <BookAppointment />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        <Route
-          path="/profile/edit"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <EditProfile />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    <Route
+                        path="/appointments/book/:artisanId"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <BookAppointment />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        {/* Reviews */}
-        <Route
-          path="/reviews/write/:artisanId"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <WriteReview />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    {/* Profile */}
+                    <Route
+                        path="/profile"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <ClientProfile />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        <Route
-          path="/my-reviews"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <MyReviews />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    <Route
+                        path="/profile/edit"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <EditProfile />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        {/* Notifications */}
-        <Route
-          path="/notifications"
-          element={
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <NotificationsList />
-              </main>
-              <Footer />
-            </div>
-          }
-        />
+                    {/* Reviews */}
+                    <Route
+                        path="/reviews/write/:artisanId"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <WriteReview />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
 
-        
-        <Route path="/admin/login" element={<AdminLogin />} />
-        
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="verification" element={<AdminArtisanVerification />} />
-          <Route path="moderation" element={<AdminModeration />} />
-          <Route path="ateliers" element={<AdminAteliers />} />
-          <Route path="services" element={<AdminServices />} />
-          <Route path="appointments" element={<AdminAppointments />} />
-          <Route path="reviews" element={<AdminReviews />} />
-          <Route path="settings" element={<AdminSettings />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
-  );
+                    <Route
+                        path="/my-reviews"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <MyReviews />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
+
+                    {/* Notifications */}
+                    <Route
+                        path="/notifications"
+                        element={
+                            <div className="flex flex-col min-h-screen">
+                                <Header />
+                                <main className="flex-grow">
+                                    <NotificationsList />
+                                </main>
+                                <Footer />
+                            </div>
+                        }
+                    />
+
+
+                    <Route path="/admin/login" element={<AdminLogin />} />
+
+                    <Route path="/admin" element={<AdminLayout />}>
+                        <Route path="dashboard" element={<AdminDashboard />} />
+                        <Route path="users" element={<AdminUsers />} />
+                        <Route path="verification" element={<AdminArtisanVerification />} />
+                        <Route path="moderation" element={<AdminModeration />} />
+                        <Route path="ateliers" element={<AdminAteliers />} />
+                        <Route path="services" element={<AdminServices />} />
+                        <Route path="appointments" element={<AdminAppointments />} />
+                        <Route path="reviews" element={<AdminReviews />} />
+                        <Route path="settings" element={<AdminSettings />} />
+                    </Route>
+                </Routes>
+            </BrowserRouter>
+        </AuthProvider>
+    );
 }
 
 export default App;
