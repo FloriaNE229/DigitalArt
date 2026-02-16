@@ -1,23 +1,25 @@
-import React, { useState } from 'react';
-import { User, Mail, Phone, Lock, Eye, EyeOff, Check, UserCircle, Hammer, Briefcase } from 'lucide-react';
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Eye, EyeOff, Mail, Lock, User, Check, Briefcase, Phone, UserCircle, Hammer } from "lucide-react";
 
-export default function Register() {
-    const [userType, setUserType] = useState("client");
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState({
-        nom: "",
-        prenom: "",
-        email: "",
-        phone: "",
-        specialty: "",
-        role: "",
-        password: "",
-        password_confirmation: "",
-        acceptTerms: false
-    });
-    const [errors, setErrors] = useState({});
+const Register = () => {
+  const [searchParams] = useSearchParams();
+  
+  // Initialiser directement userType avec la valeur de l'URL (lazy initialization)
+  const [userType, setUserType] = useState(() => {
+    const type = searchParams.get('type');
+    return type === 'artisan' ? 'artisan' : 'client';
+  });
+  
+  const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    specialty: "",
+    acceptTerms: false,
+  });
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;

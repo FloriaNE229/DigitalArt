@@ -1,6 +1,9 @@
 import { Search, Calendar, Star, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function HowItWorks() {
+  const navigate = useNavigate();
+
   const steps = [
     {
       icon: Search,
@@ -98,7 +101,11 @@ export default function HowItWorks() {
               Rejoignez des milliers de clients satisfaits
             </p>
           </div>
-          <button className="w-full px-6 py-3 text-sm font-bold text-white transition-all shadow-md sm:w-auto rounded-xl whitespace-nowrap hover:shadow-lg" style={{ background: 'linear-gradient(135deg, #ff7e5f, #ff6b4a)' }}>
+          <button 
+            onClick={() => navigate('/artisans')}
+            className="w-full px-6 py-3 text-sm font-bold text-white transition-all shadow-md sm:w-auto rounded-xl whitespace-nowrap hover:shadow-lg" 
+            style={{ background: 'linear-gradient(135deg, #ff7e5f, #ff6b4a)' }}
+          >
             Trouver un artisan
           </button>
         </div>

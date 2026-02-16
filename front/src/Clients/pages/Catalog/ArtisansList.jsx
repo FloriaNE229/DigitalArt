@@ -1,23 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, MapPin, Star, SlidersHorizontal, ChevronDown, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import Card from '../../components/Common/Card';
 import Button from '../../components/Common/Button';
 import Input from '../../components/Common/Input';
 
 export default function ArtisansList() {
+  const [searchParams] = useSearchParams();
   const [artisans, setArtisans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   
-  // Filtres
-  const [filters, setFilters] = useState({
-    search: '',
-    location: '',
-    category: 'all',
+  // ✅ Lire les paramètres URL
+  const urlSearch = searchParams.get('search') || '';
+  const urlLocation = searchParams.get('location') || '';
+  const urlCategory = searchParams.get('category') || 'all';
+  
+  // ✅ SOLUTION PARFAITE : Calculer filters directement avec useMemo
+  const filters = useMemo(() => ({
+    search: urlSearch,
+    location: urlLocation,
+    category: urlCategory,
     minRating: 0,
     availability: 'all'
-  });
+  }), [urlSearch, urlLocation, urlCategory]);
 
   // Catégories
   const categories = [
@@ -36,9 +42,45 @@ export default function ArtisansList() {
     const fetchArtisans = async () => {
       setLoading(true);
       // TODO: Remplacer par appel API Laravel
-      // Simulation API
+      // const response = await fetch(`/api/artisans?search=${filters.search}&location=${filters.location}&category=${filters.category}`);
+      
+      // Simulation filtrage côté client
       setTimeout(() => {
-        setArtisans(mockArtisans);
+        let filtered = [...mockArtisans];
+        
+        // Filtrer par recherche
+        if (filters.search) {
+          filtered = filtered.filter(a => 
+            a.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+            a.specialty.toLowerCase().includes(filters.search.toLowerCase())
+          );
+        }
+        
+        // Filtrer par localisation
+        if (filters.location) {
+          filtered = filtered.filter(a => 
+            a.location.toLowerCase().includes(filters.location.toLowerCase())
+          );
+        }
+        
+        // Filtrer par catégorie
+        if (filters.category !== 'all') {
+          filtered = filtered.filter(a => 
+            a.specialty.toLowerCase().includes(filters.category.toLowerCase())
+          );
+        }
+        
+        // Filtrer par note
+        if (filters.minRating > 0) {
+          filtered = filtered.filter(a => a.rating >= filters.minRating);
+        }
+        
+        // Filtrer par disponibilité
+        if (filters.availability === 'immediate') {
+          filtered = filtered.filter(a => a.available);
+        }
+        
+        setArtisans(filtered);
         setLoading(false);
       }, 800);
     };
@@ -46,18 +88,31 @@ export default function ArtisansList() {
     fetchArtisans();
   }, [filters]);
 
+  // ✅ Pour modifier les filtres localement (sans URL)
+  const [localFilters, setLocalFilters] = useState({
+    minRating: 0,
+    availability: 'all'
+  });
+
+  // ✅ Combiner filters URL + local filters
+  const combinedFilters = useMemo(() => ({
+    ...filters,
+    ...localFilters
+  }), [filters, localFilters]);
+
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    // Si c'est search, location ou category, on pourrait mettre à jour l'URL
+    // Pour l'instant on met à jour local
+    setLocalFilters(prev => ({ ...prev, [key]: value }));
   };
 
   const clearFilters = () => {
-    setFilters({
-      search: '',
-      location: '',
-      category: 'all',
+    setLocalFilters({
       minRating: 0,
       availability: 'all'
     });
+    // Optionnel: réinitialiser l'URL aussi
+    // navigate('/artisans');
   };
 
   return (
@@ -68,7 +123,7 @@ export default function ArtisansList() {
         <div className="mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-2 mb-6 text-sm font-semibold rounded-full" style={{ backgroundColor: 'rgba(74, 111, 165, 0.1)', color: 'var(--primary)' }}>
             <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--accent)' }}></span>
-            {artisans.length} artisans disponibles
+            {artisans.length} artisan{artisans.length > 1 ? 's' : ''} trouvé{artisans.length > 1 ? 's' : ''}
           </div>
           
           <h1 className="mb-4 text-4xl font-black md:text-5xl" style={{ color: 'var(--dark)' }}>
@@ -89,7 +144,7 @@ export default function ArtisansList() {
               <Input
                 icon={Search}
                 placeholder="Rechercher un artisan, une spécialité..."
-                value={filters.search}
+                value={combinedFilters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
               />
             </div>
@@ -97,7 +152,7 @@ export default function ArtisansList() {
               <Input
                 icon={MapPin}
                 placeholder="Ville ou localisation"
-                value={filters.location}
+                value={combinedFilters.location}
                 onChange={(e) => handleFilterChange('location', e.target.value)}
               />
             </div>
@@ -127,7 +182,7 @@ export default function ArtisansList() {
                   </label>
                   <div className="relative">
                     <select
-                      value={filters.category}
+                      value={combinedFilters.category}
                       onChange={(e) => handleFilterChange('category', e.target.value)}
                       className="w-full h-12 px-4 pr-10 transition-all border-2 appearance-none rounded-xl"
                       style={{
@@ -152,7 +207,7 @@ export default function ArtisansList() {
                     Note minimale
                   </label>
                   <select
-                    value={filters.minRating}
+                    value={combinedFilters.minRating}
                     onChange={(e) => handleFilterChange('minRating', Number(e.target.value))}
                     className="w-full h-12 px-4 transition-all border-2 rounded-xl"
                     style={{
@@ -174,7 +229,7 @@ export default function ArtisansList() {
                     Disponibilité
                   </label>
                   <select
-                    value={filters.availability}
+                    value={combinedFilters.availability}
                     onChange={(e) => handleFilterChange('availability', e.target.value)}
                     className="w-full h-12 px-4 transition-all border-2 rounded-xl"
                     style={{
@@ -215,14 +270,12 @@ export default function ArtisansList() {
               <Link key={artisan.id} to={`/artisan/${artisan.id}`}>
                 <Card hover className="h-full group">
                   <div className="relative mb-4">
-                    {/* Badge disponibilité */}
                     {artisan.available && (
                       <div className="absolute z-10 px-3 py-1 text-xs font-bold text-white rounded-full top-3 right-3" style={{ backgroundColor: '#22c55e' }}>
                         Disponible
                       </div>
                     )}
                     
-                    {/* Image */}
                     <div className="w-full h-48 overflow-hidden rounded-xl" style={{ backgroundColor: 'var(--gray)' }}>
                       <img
                         src={artisan.image}
@@ -232,7 +285,6 @@ export default function ArtisansList() {
                     </div>
                   </div>
 
-                  {/* Info artisan */}
                   <div className="mb-4">
                     <div className="flex items-start justify-between mb-2">
                       <div>
@@ -250,13 +302,11 @@ export default function ArtisansList() {
                       )}
                     </div>
 
-                    {/* Localisation */}
                     <div className="flex items-center gap-2 mb-3 text-sm" style={{ color: 'var(--dark)', opacity: 0.7 }}>
                       <MapPin className="w-4 h-4" />
                       <span>{artisan.location}</span>
                     </div>
 
-                    {/* Note */}
                     <div className="flex items-center gap-2 mb-3">
                       <div className="flex items-center">
                         {[...Array(5)].map((_, i) => (
@@ -274,13 +324,11 @@ export default function ArtisansList() {
                       </span>
                     </div>
 
-                    {/* Tarif */}
                     <div className="text-sm font-bold" style={{ color: 'var(--primary)' }}>
                       À partir de {artisan.price} FCFA
                     </div>
                   </div>
 
-                  {/* Bouton */}
                   <Button variant="primary" className="w-full">
                     Voir le profil
                   </Button>
@@ -337,7 +385,7 @@ export default function ArtisansList() {
   );
 }
 
-// Mock data (à remplacer par API)
+// Mock data
 const mockArtisans = [
   {
     id: 1,
