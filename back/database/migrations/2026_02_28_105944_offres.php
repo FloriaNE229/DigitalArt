@@ -11,14 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('atelier', function (Blueprint $table) {
+         Schema::create('offres', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->string("nom",150);
-            $table->string("image_principale")->nullable();
-            $table->text("description");
-            $table->string("domaine",100);
-            $table->string("localisation",255);
+            $table->foreignId('atelier_id')->constrained('ateliers')->cascadeOnDelete();
+            $table->string('titre', 255);
+            $table->text('description')->nullable();
+            $table->decimal('prix', 10, 2)->nullable();
             $table->timestamps();
         });
     }
@@ -28,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('atelier');
+        Schema::dropIfExists('offres');
     }
 };
