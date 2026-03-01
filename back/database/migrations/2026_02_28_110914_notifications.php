@@ -19,12 +19,15 @@ return new class extends Migration
                 'RDV_ACCEPTE',
                 'RDV_REFUSE',
                 'RDV_ANNULE',
+                'RAPPEL_RDV',
                 'NOUVEAU_SERVICE',
                 'SERVICE_ACCEPTE',
                 'SERVICE_REFUSE',
                 'SERVICE_TERMINE',
                 'SERVICE_IMMEDIAT',
                 'ARTISAN_EN_ROUTE',
+                'INFO',
+                'SYSTEME'
             ]);
             $table->text('message');
             $table->unsignedBigInteger('reference_id')->nullable();
