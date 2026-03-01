@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Auth;
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Mail\ResetPasswordMail;
-use App\Models\Utilisateur;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,10 +21,10 @@ class PasswordController extends Controller
     public function forgotPassword(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => ['required', 'email', 'exists:utilisateurs,email'],
+            'email' => ['required', 'email', 'exists:users,email'],
         ]);
 
-        $user = Utilisateur::where('email', $request->email)->first();
+        $user = User::where('email', $request->email)->first();
 
         // Supprimer un éventuel ancien token
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
@@ -56,7 +56,7 @@ class PasswordController extends Controller
     public function resetPassword(Request $request): JsonResponse
     {
         $request->validate([
-            'email'                 => ['required', 'email', 'exists:utilisateurs,email'],
+            'email'                 => ['required', 'email', 'exists:users,email'],
             'token'                 => ['required', 'string'],
             'mot_de_passe'          => ['required', 'confirmed', 'min:8'],
             'mot_de_passe_confirmation' => ['required'],
@@ -76,7 +76,7 @@ class PasswordController extends Controller
             return response()->json(['message' => 'Token expiré. Veuillez refaire une demande.'], 422);
         }
 
-        $user = Utilisateur::where('email', $request->email)->firstOrFail();
+        $user = User::where('email', $request->email)->firstOrFail();
         $user->update(['mot_de_passe' => Hash::make($request->mot_de_passe)]);
 
         // Révoquer tous les tokens Sanctum pour forcer la reconnexion

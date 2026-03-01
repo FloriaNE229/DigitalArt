@@ -90,6 +90,12 @@ class ServiceImmediatController extends Controller
      */
     public function disponibles(Request $request): JsonResponse
     {
+
+        // Vérification manuelle du rôle
+        if (! $request->user()->isArtisan()) {
+            return response()->json(['message' => 'Accès refusé.'], 403);
+        }
+        
         $domaine = $request->user()->artisan?->atelier?->domaine;
 
         $services = ServiceImmediat::with('client:id,nom,prenom')

@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\PasswordController;
 use App\Http\Controllers\AtelierController;
 use App\Http\Controllers\AvisController;
 use App\Http\Controllers\HoraireController;
@@ -61,6 +61,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('{id}/lu',         [NotificationController::class, 'marquerLue']);
         Route::delete('{id}',           [NotificationController::class, 'destroy']);
     });
+
+
+    Route::get('services-immediats/disponibles', [ServiceImmediatController::class, 'disponibles']);
 
     // ============================================================
     // ROUTES CLIENT UNIQUEMENT
@@ -165,9 +168,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Services immédiats
         Route::prefix('services-immediats')->group(function () {
-            Route::get('disponibles',        [ServiceImmediatController::class, 'disponibles']);
-            Route::patch('{id}/accepter',    [ServiceImmediatController::class, 'accepter']);
-            Route::patch('{id}/terminer',    [ServiceImmediatController::class, 'terminer']);
+            Route::patch('{id}/accepter', [ServiceImmediatController::class, 'accepter']);
+            Route::patch('{id}/terminer', [ServiceImmediatController::class, 'terminer']);
         });
     });
 });

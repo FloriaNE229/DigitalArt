@@ -56,14 +56,16 @@ class AtelierController extends Controller
 
         // Filtre par note minimale
         if ($noteMin = $request->note_min) {
-            $query->having('avis_avg_note', '>=', $noteMin);
-        }
-
+            $query->whereRaw(
+                '(SELECT AVG(note) FROM avis WHERE avis.atelier_id = ateliers.id) >= ?',
+                [$noteMin]
+            );
+        }  
         // Tri
-        match ($request->tri ?? 'recent') {
-            'note_desc' => $query->orderByDesc('avis_avg_note'),
-            'note_asc'  => $query->orderBy('avis_avg_note'),
-            default     => $query->orderByDesc('created_at'),
+       match ($request->tri ?? 'recent') {
+            'note_desc' => $query->orderByRaw('(SELECT AVG(note) FROM avis WHERE avis.atelier_id = ateliers.id) DESC NULLS LAST'),
+            'note_asc'  => $query->orderByRaw('(SELECT AVG(note) FROM avis WHERE avis.atelier_id = ateliers.id) ASC NULLS LAST'),
+            default     => $query->orderByDesc('ateliers.created_at'),
         };
 
         $ateliers = $query->paginate($request->par_page ?? 15);

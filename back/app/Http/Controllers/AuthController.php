@@ -30,7 +30,7 @@ class AuthController extends Controller
             'photo_profil' => ['nullable', 'url', 'max:500'],
         ]);
 
-        $user = Utilisateur::create([
+        $user = User::create([
             'nom'          => $data['nom'],
             'prenom'       => $data['prenom'],
             'email'        => $data['email'],
@@ -64,7 +64,7 @@ class AuthController extends Controller
 
         // Transaction pour garantir l'atomicité
         $user = \DB::transaction(function () use ($data) {
-            $user = Utilisateur::create([
+            $user = User::create([
                 'nom'          => $data['nom'],
                 'prenom'       => $data['prenom'],
                 'email'        => $data['email'],
@@ -100,7 +100,7 @@ class AuthController extends Controller
             'mot_de_passe' => ['required', 'string'],
         ]);
 
-        $user = Utilisateur::where('email', $data['email'])->first();
+        $user = User::where('email', $data['email'])->first();
 
         if (! $user || ! Hash::check($data['mot_de_passe'], $user->mot_de_passe)) {
             throw ValidationException::withMessages([
@@ -163,7 +163,7 @@ class AuthController extends Controller
     // PRIVATE HELPERS
     // -------------------------------------------------------------------------
 
-    private function formatUser(Utilisateur $user): array
+    private function formatUser(User $user): array
     {
         $data = [
             'id'           => $user->id,
