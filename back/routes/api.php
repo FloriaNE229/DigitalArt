@@ -13,6 +13,12 @@ use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\RendezVousController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ServiceImmediatController;
+use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\AdminAtelierController;
+use App\Http\Controllers\Admin\AdminAvisController;
+use App\Http\Controllers\Admin\AdminServiceController;
+use App\Http\Controllers\Admin\AdminNotificationController;
+use App\Http\Controllers\Admin\AdminDashboardController;
 
 
 // Routes publiques
@@ -37,7 +43,7 @@ Route::get('oeuvres/{id}',                  [OeuvreController::class, 'show']);
 Route::get('domaines',                      [AtelierController::class, 'domaines']);
 
 // Routes protégées (auth:api)
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth:sanctum', 'suspendu')->group(function () {
 
     // Auth
     Route::prefix('auth')->group(function () {
@@ -172,5 +178,54 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::patch('{id}/terminer', [ServiceImmediatController::class, 'terminer']);
         });
     });
+});
+
+//ROUTES ADMIN UNIQUEMENT
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+
+    // ── Dashboard ─────────────────────────────────────────────
+    Route::get('dashboard',                [AdminDashboardController::class, 'index']);
+    Route::get('dashboard/inscriptions',   [AdminDashboardController::class, 'inscriptions']);
+    Route::get('dashboard/services-evolution', [AdminDashboardController::class, 'servicesEvolution']);
+
+    // ── Gestion des utilisateurs ──────────────────────────────
+    Route::prefix('users')->group(function () {
+        Route::get('/',                    [AdminUserController::class, 'index']);
+        Route::get('{id}',                 [AdminUserController::class, 'show']);
+        Route::patch('{id}/suspendre',     [AdminUserController::class, 'suspendre']);
+        Route::patch('{id}/reactiver',     [AdminUserController::class, 'reactiver']);
+        Route::patch('{id}/role',          [AdminUserController::class, 'changerRole']);
+        Route::delete('{id}',              [AdminUserController::class, 'destroy']);
+    });
+
+    // ── Gestion des ateliers ──────────────────────────────────
+    Route::prefix('ateliers')->group(function () {
+        Route::get('/',                    [AdminAtelierController::class, 'index']);
+        Route::get('{id}',                 [AdminAtelierController::class, 'show']);
+        Route::patch('{id}/suspendre',     [AdminAtelierController::class, 'suspendre']);
+        Route::patch('{id}/reactiver',     [AdminAtelierController::class, 'reactiver']);
+        Route::delete('{id}',              [AdminAtelierController::class, 'destroy']);
+    });
+
+    // ── Modération des avis ───────────────────────────────────
+    Route::prefix('avis')->group(function () {
+        Route::get('/',                    [AdminAvisController::class, 'index']);
+        Route::delete('{id}',              [AdminAvisController::class, 'destroy']);
+    });
+
+    // ── Supervision services ──────────────────────────────────
+    Route::get('services',                 [AdminServiceController::class, 'indexServices']);
+    Route::delete('services/{id}',         [AdminServiceController::class, 'destroyService']);
+
+    // ── Supervision rendez-vous ───────────────────────────────
+    Route::get('rendez-vous',              [AdminServiceController::class, 'indexRendezVous']);
+    Route::delete('rendez-vous/{id}',      [AdminServiceController::class, 'destroyRendezVous']);
+
+    // ── Supervision services immédiats ────────────────────────
+    Route::get('services-immediats',       [AdminServiceController::class, 'indexServicesImmediats']);
+
+    // ── Notifications admin ───────────────────────────────────
+    Route::post('notifications/envoyer',   [AdminNotificationController::class, 'envoyer']);
+    Route::post('notifications/broadcast', [AdminNotificationController::class, 'broadcast']);
 });
 
