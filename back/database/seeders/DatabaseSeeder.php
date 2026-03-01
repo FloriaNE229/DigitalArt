@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             RendezVousSeeder::class,     // RDV dans différents statuts
             ServiceSeeder::class,        // Services dans différents statuts
             AvisSeeder::class,           // Avis sur les services terminés
+            AdminSeeder::class,           // Création d'un compte admin
         ]);
     }
 }

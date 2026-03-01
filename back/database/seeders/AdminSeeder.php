@@ -13,39 +13,17 @@ class AdminSeeder extends Seeder
      */
     public function run(): void
     {
-        // Créer un utilisateur admin par défaut
-        User::create([
-            'nom' => 'Admin',
-            'prenom' => 'System',
-            'email' => 'admin@digitalart.com',
-            'password' => Hash::make('Admin@123456'),
-            'role' => 'ADMIN',
-            'photo_profil' => null,
-            'email_verified_at' => now(),
-        ]);
+        User::firstOrCreate(
+            ['email' => 'admin@artisan.com'],
+            [
+                'nom'          => 'Super',
+                'prenom'       => 'Admin',
+                'mot_de_passe' => Hash::make('admin123456'),
+                'role'         => 'ADMIN',
+                'suspendu'     => false,
+            ]
+        );
 
-        // Créer un utilisateur CLIENT pour test
-        User::create([
-            'nom' => 'Client',
-            'prenom' => 'Test',
-            'email' => 'client@digitalart.com',
-            'password' => Hash::make('Client@123456'),
-            'role' => 'CLIENT',
-            'photo_profil' => null,
-            'email_verified_at' => now(),
-        ]);
-
-        // Créer un utilisateur ARTISAN pour test
-        User::create([
-            'nom' => 'Artisan',
-            'prenom' => 'Test',
-            'email' => 'artisan@digitalart.com',
-            'password' => Hash::make('Artisan@123456'),
-            'role' => 'ARTISAN',
-            'photo_profil' => null,
-            'email_verified_at' => now(),
-            'specialite' => 'Peinture',
-            'experience_level' => 'expert',
-        ]);
+        $this->command->info('✅ Admin seedé → admin@artisan.com / admin123456');
     }
 }
