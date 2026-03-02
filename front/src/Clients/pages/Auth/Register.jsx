@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone, Lock, Eye, EyeOff, Check, UserCircle, Hammer, Briefcase, Plus, X  } from 'lucide-react';
+import { User, Mail, Phone, Lock, Eye, EyeOff, Check, UserCircle, Hammer, Briefcase, Plus, X } from 'lucide-react';
 import { useAuth } from '../../components/Auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -137,10 +137,11 @@ export default function Register() {
             })
             if (!response.ok) {
                 // Si l'API renvoie des erreurs de validation (ex: code 422)
-                if (response.status === 422 && data.errors) {
-                    setErrors(data.errors);
+                if (response.status === 422) {
+                    const errorData = await response.json()
+                    setErrors({ ...errors, submit: errorData.message });
                 }
-                throw new Error(data.message || `Erreur code: ${response.status}`);
+                throw new Error(`Erreur code: ${response.status}`);
             }
             const data = await response.json();
             if (!data.user || !data.accessToken) {
@@ -151,6 +152,9 @@ export default function Register() {
             navigate('/');
         } catch (error) {
             console.error("Erreur lors de l'inscription:", error.message);
+        }
+        finally {
+            setLoading(false)
         }
     };
 
@@ -180,6 +184,11 @@ export default function Register() {
                         Commencez avec DigitalArt
                     </p>
                 </div>
+                {errors.submit && (
+                    <div className="p-4 mb-6 rounded-xl" style={{ backgroundColor: 'rgba(255, 126, 95, 0.1)', borderLeft: '4px solid var(--accent)' }}>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>{errors.submit}</p>
+                    </div>
+                )}
 
                 {/* Carte principale */}
                 <div className="p-6 rounded-xl shadow-lg" style={{

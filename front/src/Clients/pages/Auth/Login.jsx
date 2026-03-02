@@ -70,10 +70,10 @@ const Login = () => {
             })
             if (!response.ok) {
                 // Si l'API renvoie des erreurs de validation (ex: code 422)
-                if (response.status === 422 && data.errors) {
-                    setErrors({ ...errors, submit: data.errors });
+                if (response.status === 401 ) {
+                    setErrors({ ...errors, submit: "Mot de passe invalide ou Email invalide" });
                 }
-                throw new Error(data.message || `Erreur code: ${response.status}`);
+                throw new Error(`Erreur code: ${response.status}`);
             }
             const data = await response.json();
             if (!data.user || !data.accessToken) {
@@ -84,6 +84,9 @@ const Login = () => {
             navigate(callbackUrl);
         } catch (error) {
             console.error("Erreur lors de l'inscription:", error.message);
+        }
+        finally{
+            setLoading(false)
         }
     };
     return (
