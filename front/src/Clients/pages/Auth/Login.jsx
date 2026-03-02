@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from "../../components/Auth/AuthContext";
+import { useAuth } from "../../components/Auth/useAuthHook";
 
 const Login = () => {
     const navigate = useNavigate();
@@ -79,7 +79,6 @@ const Login = () => {
             if (!data.user || !data.accessToken) {
                 throw new Error("User undefined or accessToken invalid");
             }
-            console.log(data);
             login(data.user, data.accessToken);
             navigate(callbackUrl);
         } catch (error) {

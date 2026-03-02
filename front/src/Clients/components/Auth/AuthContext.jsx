@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 
-const AuthContext = createContext();
+export const AuthContext = createContext(undefined);
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
@@ -18,7 +18,6 @@ export function AuthProvider({ children }) {
             // on tente de renouveler l'access token de l'user avec le refresh token en cookie
             try {
                 await refreshAccessToken();
-
             } catch (error) {
                 setUser(null);
                 setLoading(null);
@@ -106,12 +105,3 @@ export function AuthProvider({ children }) {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function useAuth() {
-    const context = useContext(AuthContext);
-    console.log(context);
-    
-    if (!context) {
-        throw new Error('useAuth must be used within AuthProvider');
-    }
-    return context;
-}

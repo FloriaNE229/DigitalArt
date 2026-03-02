@@ -161,39 +161,45 @@ function App() {
                     <Route
                         path="/services/request"
                         element={
-                            <div className="flex flex-col min-h-screen">
-                                <Header />
-                                <main className="flex-grow">
-                                    <ServiceRequest />
-                                </main>
-                                <Footer />
-                            </div>
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <ServiceRequest />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
                         }
                     />
 
                     <Route
                         path="/services/request/:artisanId"
                         element={
-                            <div className="flex flex-col min-h-screen">
-                                <Header />
-                                <main className="flex-grow">
-                                    <ServiceRequest />
-                                </main>
-                                <Footer />
-                            </div>
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <ServiceRequest />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
                         }
                     />
 
                     <Route
                         path="/services/immediate"
                         element={
-                            <div className="flex flex-col min-h-screen">
-                                <Header />
-                                <main className="flex-grow">
-                                    <ServiceImmediate />
-                                </main>
-                                <Footer />
-                            </div>
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <ServiceImmediate />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
                         }
                     />
 
@@ -201,39 +207,45 @@ function App() {
                     <Route
                         path="/my-appointments"
                         element={
-                            <div className="flex flex-col min-h-screen">
-                                <Header />
-                                <main className="flex-grow">
-                                    <MyAppointments />
-                                </main>
-                                <Footer />
-                            </div>
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <MyAppointments />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
                         }
                     />
 
                     <Route
                         path="/appointments/book"
                         element={
-                            <div className="flex flex-col min-h-screen">
-                                <Header />
-                                <main className="flex-grow">
-                                    <BookAppointment />
-                                </main>
-                                <Footer />
-                            </div>
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <BookAppointment />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
                         }
                     />
 
                     <Route
                         path="/appointments/book/:artisanId"
                         element={
-                            <div className="flex flex-col min-h-screen">
-                                <Header />
-                                <main className="flex-grow">
-                                    <BookAppointment />
-                                </main>
-                                <Footer />
-                            </div>
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <BookAppointment />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
                         }
                     />
 
@@ -241,26 +253,30 @@ function App() {
                     <Route
                         path="/profile"
                         element={
-                            <div className="flex flex-col min-h-screen">
-                                <Header />
-                                <main className="flex-grow">
-                                    <ClientProfile />
-                                </main>
-                                <Footer />
-                            </div>
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <ClientProfile />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
                         }
                     />
 
                     <Route
                         path="/profile/edit"
                         element={
-                            <div className="flex flex-col min-h-screen">
-                                <Header />
-                                <main className="flex-grow">
-                                    <EditProfile />
-                                </main>
-                                <Footer />
-                            </div>
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <EditProfile />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
                         }
                     />
 
@@ -268,26 +284,30 @@ function App() {
                     <Route
                         path="/reviews/write/:artisanId"
                         element={
-                            <div className="flex flex-col min-h-screen">
-                                <Header />
-                                <main className="flex-grow">
-                                    <WriteReview />
-                                </main>
-                                <Footer />
-                            </div>
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <WriteReview />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
                         }
                     />
 
                     <Route
                         path="/my-reviews"
                         element={
-                            <div className="flex flex-col min-h-screen">
-                                <Header />
-                                <main className="flex-grow">
-                                    <MyReviews />
-                                </main>
-                                <Footer />
-                            </div>
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <MyReviews />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
                         }
                     />
 
@@ -295,13 +315,15 @@ function App() {
                     <Route
                         path="/notifications"
                         element={
-                            <div className="flex flex-col min-h-screen">
-                                <Header />
-                                <main className="flex-grow">
-                                    <NotificationsList />
-                                </main>
-                                <Footer />
-                            </div>
+                            <AuthComponent>
+                                <div className="flex flex-col min-h-screen">
+                                    <Header />
+                                    <main className="flex-grow">
+                                        <NotificationsList />
+                                    </main>
+                                    <Footer />
+                                </div>
+                            </AuthComponent>
                         }
                     />
 
