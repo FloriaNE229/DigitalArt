@@ -7,37 +7,32 @@ import Input from '../../components/Common/Input';
 
 const CATEGORIES = [
   { value: 'all',         label: 'Toutes catégories' },
-  { value: 'plomberie',   label: 'Plomberie'         },
-  { value: 'electricite', label: 'Électricité'       },
-  { value: 'menuiserie',  label: 'Menuiserie'        },
-  { value: 'peinture',    label: 'Peinture'          },
-  { value: 'maconnerie',  label: 'Maçonnerie'        },
-  { value: 'couture',     label: 'Couture'           },
-  { value: 'coiffure',    label: 'Coiffure'          },
-  { value: 'mecanique',   label: 'Mécanique'         },
+  { value: 'Plomberie',   label: 'Plomberie'         },
+  { value: 'Électricité', label: 'Électricité'       },
+  { value: 'Menuiserie',  label: 'Menuiserie'        },
+  { value: 'Peinture',    label: 'Peinture'          },
+  { value: 'Maçonnerie',  label: 'Maçonnerie'        },
+  { value: 'Couture',     label: 'Couture'           },
+  { value: 'Coiffure',    label: 'Coiffure'          },
+  { value: 'Mécanique',   label: 'Mécanique'         },
 ];
 
 const ITEMS_PER_PAGE = 9;
 
-// ── Carte artisan (extraite du composant parent pour éviter re-création à chaque render)
-function ArtisanCard({ artisan }) {
-  const name      = artisan.name ?? `${artisan.prenom ?? ''} ${artisan.nom ?? ''}`.trim();
-  const specialty = artisan.specialty ?? artisan.specialite ?? '';
-  const location  = artisan.location  ?? artisan.ville ?? '';
-  const photo     = artisan.photo     ?? artisan.image ?? null;
-  const initiale  = name.charAt(0).toUpperCase();
+function AtelierCard({ atelier }) {
+  // Normalisation des champs retournés par le back
+  const name     = atelier.nom ?? '';
+  const domaine  = atelier.domaine ?? '';
+  const location = atelier.localisation ?? '';
+  const photo    = atelier.image_principale ?? null;
+  const rating   = atelier.avis_avg_note ? Number(atelier.avis_avg_note).toFixed(1) : null;
+  const avisCount= atelier.avis_count ?? 0;
+  const initiale = name.charAt(0).toUpperCase();
 
   return (
-    <Link to={`/artisan/${artisan.id}`}>
+    <Link to={`/artisan/${atelier.id}`}>
       <Card hover className="h-full group">
-        {/* Photo */}
         <div className="relative mb-4">
-          {artisan.available && (
-            <div className="absolute z-10 px-3 py-1 text-xs font-bold text-white rounded-full top-3 right-3"
-              style={{ backgroundColor: '#22c55e' }}>
-              Disponible
-            </div>
-          )}
           <div className="w-full h-48 overflow-hidden rounded-xl" style={{ backgroundColor: 'var(--gray)' }}>
             {photo ? (
               <img src={photo} alt={name}
@@ -51,14 +46,13 @@ function ArtisanCard({ artisan }) {
           </div>
         </div>
 
-        {/* Infos */}
         <div className="mb-4">
           <div className="flex items-start justify-between mb-2">
             <div>
               <h3 className="mb-1 text-xl font-bold" style={{ color: 'var(--dark)' }}>{name}</h3>
-              <p className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>{specialty}</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>{domaine}</p>
             </div>
-            {(artisan.verified || artisan.verification_status === 'approved') && (
+            {atelier.verification_status === 'approved' && (
               <div className="px-2 py-1 text-xs font-bold rounded-full"
                 style={{ backgroundColor: 'rgba(74, 111, 165, 0.1)', color: 'var(--primary)' }}>
                 ✓ Vérifié
@@ -72,28 +66,20 @@ function ArtisanCard({ artisan }) {
             </div>
           )}
 
-          {artisan.rating != null && (
+          {rating && (
             <div className="flex items-center gap-2 mb-3">
               <div className="flex items-center">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} className={`w-4 h-4 ${i < Math.floor(artisan.rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                  <Star key={i} className={`w-4 h-4 ${i < Math.floor(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
                 ))}
               </div>
-              <span className="text-sm font-bold" style={{ color: 'var(--dark)' }}>{artisan.rating}</span>
-              {artisan.reviews != null && (
-                <span className="text-xs" style={{ color: 'var(--dark)', opacity: 0.6 }}>({artisan.reviews} avis)</span>
-              )}
-            </div>
-          )}
-
-          {artisan.price && (
-            <div className="text-sm font-bold" style={{ color: 'var(--primary)' }}>
-              À partir de {artisan.price} FCFA
+              <span className="text-sm font-bold" style={{ color: 'var(--dark)' }}>{rating}</span>
+              <span className="text-xs" style={{ color: 'var(--dark)', opacity: 0.6 }}>({avisCount} avis)</span>
             </div>
           )}
         </div>
 
-        <Button variant="primary" className="w-full">Voir le profil</Button>
+        <Button variant="primary" className="w-full">Voir l'atelier</Button>
       </Card>
     </Link>
   );
@@ -102,52 +88,48 @@ function ArtisanCard({ artisan }) {
 export default function ArtisansList() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // ── Filtres depuis l'URL (source de vérité)
-  const urlSearch   = searchParams.get('search')       || '';
-  const urlLocation = searchParams.get('location')     || '';
-  const urlCategory = searchParams.get('category')     || 'all';
+  // Params URL → params back
+  const urlSearch   = searchParams.get('search')    || '';
+  const urlLocation = searchParams.get('location')  || '';
+  const urlCategory = searchParams.get('category')  || 'all';
   const urlRating   = Number(searchParams.get('minRating') || 0);
-  const urlAvail    = searchParams.get('availability') || 'all';
-  const urlPage     = Number(searchParams.get('page')  || 1);
+  const urlTri      = searchParams.get('tri')        || 'recent';
+  const urlPage     = Number(searchParams.get('page') || 1);
 
-  // ── Inputs locaux (avant soumission)
   const [inputSearch,   setInputSearch]   = useState(urlSearch);
   const [inputLocation, setInputLocation] = useState(urlLocation);
 
-  // ── État
-  const [artisans,    setArtisans]    = useState([]);
-  const [totalCount,  setTotalCount]  = useState(0);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
-  // Compteur pour forcer un retry sans changer les params URL
-  const [retryCount,  setRetryCount]  = useState(0);
+  const [ateliers,   setAteliers]   = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(null);
+  const [showFilters,setShowFilters]= useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
-  // Sync inputs si URL change depuis l'extérieur
   useEffect(() => {
     setInputSearch(urlSearch);
     setInputLocation(urlLocation);
   }, [urlSearch, urlLocation]);
 
-  // ── Appel API
   useEffect(() => {
     const controller = new AbortController();
 
-    const fetchArtisans = async () => {
+    const fetchAteliers = async () => {
       setLoading(true);
       setError(null);
-
       try {
+        // Mapping vers les params attendus par le back
         const params = new URLSearchParams();
-        if (urlSearch)             params.set('search',       urlSearch);
-        if (urlLocation)           params.set('location',     urlLocation);
-        if (urlCategory !== 'all') params.set('specialty',    urlCategory);
-        if (urlRating)             params.set('min_rating',   String(urlRating));
-        if (urlAvail !== 'all')    params.set('availability', urlAvail);
-        params.set('page',     String(urlPage));
-        params.set('per_page', String(ITEMS_PER_PAGE));
+        if (urlSearch)             params.set('recherche',    urlSearch);
+        if (urlLocation)           params.set('localisation', urlLocation);
+        if (urlCategory !== 'all') params.set('domaine',      urlCategory);
+        if (urlRating)             params.set('note_min',     String(urlRating));
+        params.set('tri',      urlTri);
+        params.set('par_page', String(ITEMS_PER_PAGE));
+        // pagination Laravel = page
+        if (urlPage > 1) params.set('page', String(urlPage));
 
-        const res = await fetch(`/api/artisans?${params}`, {
+        const res = await fetch(`/api/ateliers?${params}`, {
           headers:     { Accept: 'application/json' },
           credentials: 'include',
           signal:      controller.signal,
@@ -157,53 +139,50 @@ export default function ArtisansList() {
 
         const json = await res.json();
 
-        if (Array.isArray(json)) {
-          setArtisans(json);
+        // Laravel paginate retourne { data, total, ... }
+        if (Array.isArray(json.data)) {
+          setAteliers(json.data);
+          setTotalCount(json.total ?? json.data.length);
+        } else if (Array.isArray(json)) {
+          setAteliers(json);
           setTotalCount(json.length);
-        } else if (Array.isArray(json.data)) {
-          setArtisans(json.data);
-          setTotalCount(json.total ?? json.meta?.total ?? json.data.length);
-        } else if (Array.isArray(json.artisans)) {
-          setArtisans(json.artisans);
-          setTotalCount(json.meta?.total ?? json.artisans.length);
         } else {
-          setArtisans([]);
+          setAteliers([]);
           setTotalCount(0);
         }
       } catch (err) {
         if (err.name === 'AbortError') return;
         setError(err.message);
-        setArtisans([]);
+        setAteliers([]);
         setTotalCount(0);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchArtisans();
+    fetchAteliers();
     return () => controller.abort();
-  }, [urlSearch, urlLocation, urlCategory, urlRating, urlAvail, urlPage, retryCount]);
+  }, [urlSearch, urlLocation, urlCategory, urlRating, urlTri, urlPage, retryCount]);
 
-  // ── Helpers URL
   const pushParams = useCallback((overrides = {}) => {
     const next = {
-      search:       inputSearch,
-      location:     inputLocation,
-      category:     urlCategory,
-      minRating:    String(urlRating),
-      availability: urlAvail,
-      page:         '1',
+      search:    inputSearch,
+      location:  inputLocation,
+      category:  urlCategory,
+      minRating: String(urlRating),
+      tri:       urlTri,
+      page:      '1',
       ...overrides,
     };
     const p = {};
-    if (next.search)                 p.search       = next.search;
-    if (next.location)               p.location     = next.location;
-    if (next.category !== 'all')     p.category     = next.category;
-    if (Number(next.minRating))      p.minRating    = next.minRating;
-    if (next.availability !== 'all') p.availability = next.availability;
-    if (Number(next.page) > 1)       p.page         = next.page;
+    if (next.search)               p.search    = next.search;
+    if (next.location)             p.location  = next.location;
+    if (next.category !== 'all')   p.category  = next.category;
+    if (Number(next.minRating))    p.minRating = next.minRating;
+    if (next.tri !== 'recent')     p.tri       = next.tri;
+    if (Number(next.page) > 1)     p.page      = next.page;
     setSearchParams(p);
-  }, [inputSearch, inputLocation, urlCategory, urlRating, urlAvail, setSearchParams]);
+  }, [inputSearch, inputLocation, urlCategory, urlRating, urlTri, setSearchParams]);
 
   const handleSearch       = () => pushParams();
   const handleSelectChange = (key, val) => pushParams({ [key]: val });
@@ -212,7 +191,7 @@ export default function ArtisansList() {
   const handleRetry        = () => setRetryCount(c => c + 1);
 
   const totalPages       = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
-  const hasActiveFilters = urlSearch || urlLocation || urlCategory !== 'all' || urlRating > 0 || urlAvail !== 'all';
+  const hasActiveFilters = urlSearch || urlLocation || urlCategory !== 'all' || urlRating > 0;
 
   const paginationPages = () => {
     const pages = [];
@@ -225,12 +204,11 @@ export default function ArtisansList() {
     <div className="min-h-screen pt-24 pb-20" style={{ backgroundColor: 'var(--light)' }}>
       <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
 
-        {/* Header */}
         <div className="mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-2 mb-6 text-sm font-semibold rounded-full"
             style={{ backgroundColor: 'rgba(74, 111, 165, 0.1)', color: 'var(--primary)' }}>
             <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--accent)' }} />
-            {loading ? 'Chargement…' : `${totalCount} artisan${totalCount > 1 ? 's' : ''} trouvé${totalCount > 1 ? 's' : ''}`}
+            {loading ? 'Chargement…' : `${totalCount} atelier${totalCount > 1 ? 's' : ''} trouvé${totalCount > 1 ? 's' : ''}`}
           </div>
 
           <h1 className="mb-4 text-4xl font-black md:text-5xl" style={{ color: 'var(--dark)' }}>
@@ -259,7 +237,7 @@ export default function ArtisansList() {
         <Card className="p-6 mb-8">
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="flex-1">
-              <Input icon={Search} placeholder="Rechercher un artisan, une spécialité…"
+              <Input icon={Search} placeholder="Rechercher un atelier, un domaine…"
                 value={inputSearch} onChange={(e) => setInputSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
             </div>
@@ -311,21 +289,20 @@ export default function ArtisansList() {
                     className="w-full h-12 px-4 transition-all border-2 rounded-xl"
                     style={{ backgroundColor: 'var(--gray)', borderColor: 'var(--gray-dark)', color: 'var(--dark)' }}>
                     <option value={0}>Toutes notes</option>
+                    <option value={3}>3+ étoiles</option>
                     <option value={4}>4+ étoiles</option>
                     <option value={4.5}>4.5+ étoiles</option>
-                    <option value={4.8}>4.8+ étoiles</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block mb-2 text-sm font-bold" style={{ color: 'var(--dark)' }}>Disponibilité</label>
-                  <select value={urlAvail} onChange={(e) => handleSelectChange('availability', e.target.value)}
+                  <label className="block mb-2 text-sm font-bold" style={{ color: 'var(--dark)' }}>Trier par</label>
+                  <select value={urlTri} onChange={(e) => handleSelectChange('tri', e.target.value)}
                     className="w-full h-12 px-4 transition-all border-2 rounded-xl"
                     style={{ backgroundColor: 'var(--gray)', borderColor: 'var(--gray-dark)', color: 'var(--dark)' }}>
-                    <option value="all">Tous</option>
-                    <option value="immediate">Disponible immédiatement</option>
-                    <option value="week">Cette semaine</option>
-                    <option value="month">Ce mois-ci</option>
+                    <option value="recent">Plus récents</option>
+                    <option value="note_desc">Meilleure note</option>
+                    <option value="note_asc">Note croissante</option>
                   </select>
                 </div>
               </div>
@@ -361,9 +338,9 @@ export default function ArtisansList() {
         )}
 
         {/* Grille */}
-        {!loading && !error && artisans.length > 0 && (
+        {!loading && !error && ateliers.length > 0 && (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {artisans.map(a => <ArtisanCard key={a.id} artisan={a} />)}
+            {ateliers.map(a => <AtelierCard key={a.id} atelier={a} />)}
           </div>
         )}
 
@@ -395,13 +372,13 @@ export default function ArtisansList() {
         )}
 
         {/* Aucun résultat */}
-        {!loading && !error && artisans.length === 0 && (
+        {!loading && !error && ateliers.length === 0 && (
           <Card className="py-20 text-center">
             <div className="flex items-center justify-center w-20 h-20 mx-auto mb-6 rounded-full"
               style={{ backgroundColor: 'rgba(255, 126, 95, 0.1)' }}>
               <Search className="w-10 h-10" style={{ color: 'var(--accent)' }} />
             </div>
-            <h3 className="mb-3 text-2xl font-bold" style={{ color: 'var(--dark)' }}>Aucun artisan trouvé</h3>
+            <h3 className="mb-3 text-2xl font-bold" style={{ color: 'var(--dark)' }}>Aucun atelier trouvé</h3>
             <p className="mb-6 text-sm" style={{ color: 'var(--dark)', opacity: 0.7 }}>
               Essayez de modifier vos critères de recherche
             </p>

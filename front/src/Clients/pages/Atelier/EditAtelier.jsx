@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Store, MapPin, Briefcase, FileText, Image,
   ChevronLeft, Loader, CheckCircle, Trash2, AlertTriangle
@@ -12,12 +12,11 @@ const DOMAINES = [
   'Nettoyage', 'Cuisine', 'Photographie', 'Informatique', 'Autre',
 ];
 
-// ── Badge statut extrait du composant (évite recréation à chaque render)
 function StatusBadge({ status }) {
   if (!status) return null;
   const config = {
-    approved: { label: '✓ Approuvé',  cls: 'bg-green-100 text-green-700'   },
-    rejected: { label: '✗ Rejeté',    cls: 'bg-red-100 text-red-700'       },
+    approved: { label: '✓ Approuvé',   cls: 'bg-green-100 text-green-700'   },
+    rejected: { label: '✗ Rejeté',     cls: 'bg-red-100 text-red-700'       },
     pending:  { label: '⏳ En attente', cls: 'bg-yellow-100 text-yellow-700' },
   };
   const c = config[status] ?? config.pending;
@@ -25,38 +24,35 @@ function StatusBadge({ status }) {
 }
 
 export default function EditAtelier() {
-  const { id }         = useParams();
   const navigate       = useNavigate();
   const { accesToken } = useAuth();
 
   const [form, setForm] = useState({
-    nom:              '',
-    domaine:          '',
-    localisation:     '',
-    description:      '',
-    image_principale: '',
+    nom:          '',
+    domaine:      '',
+    localisation: '',
+    description:  '',
   });
 
-  const [loading,    setLoading]    = useState(false);
-  const [fetching,   setFetching]   = useState(true);
-  const [success,    setSuccess]    = useState(false);
-  const [errors,     setErrors]     = useState({});
-  const [apiError,   setApiError]   = useState(null);
-  const [showDelete, setShowDelete] = useState(false);
-  const [deleting,   setDeleting]   = useState(false);
-  const [statusBadge,setStatusBadge]= useState(null);
-  // Stocker l'id réel de l'atelier (chargé depuis /api/atelier/mine)
-  const [atelierId,  setAtelierId]  = useState(id ?? null);
+  const [imageFile,    setImageFile]    = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [loading,      setLoading]      = useState(false);
+  const [fetching,     setFetching]     = useState(true);
+  const [success,      setSuccess]      = useState(false);
+  const [errors,       setErrors]       = useState({});
+  const [apiError,     setApiError]     = useState(null);
+  const [showDelete,   setShowDelete]   = useState(false);
+  const [deleting,     setDeleting]     = useState(false);
+  const [statusBadge,  setStatusBadge]  = useState(null);
+  const [atelierId,    setAtelierId]    = useState(null);
 
-  // ── Charger l'atelier existant
-  // On utilise /api/atelier/mine (pas besoin de l'id en URL pour le GET)
+  // ── GET /api/mon-atelier
   useEffect(() => {
     if (!accesToken) return;
-
     const fetchAtelier = async () => {
       setFetching(true);
       try {
-        const res = await fetch('/api/atelier/mine', {
+        const res = await fetch('/api/mon-atelier', {
           headers: {
             Accept:        'application/json',
             Authorization: `Bearer ${accesToken}`,
@@ -67,14 +63,14 @@ export default function EditAtelier() {
         const data    = await res.json();
         const atelier = data.atelier ?? data;
 
-        setAtelierId(atelier.id ?? id);
+        setAtelierId(atelier.id);
         setForm({
-          nom:              atelier.nom              ?? '',
-          domaine:          atelier.domaine          ?? '',
-          localisation:     atelier.localisation     ?? '',
-          description:      atelier.description      ?? '',
-          image_principale: atelier.image_principale ?? '',
+          nom:          atelier.nom          ?? '',
+          domaine:      atelier.domaine      ?? '',
+          localisation: atelier.localisation ?? '',
+          description:  atelier.description  ?? '',
         });
+        setImagePreview(atelier.image_principale ?? null);
         setStatusBadge(atelier.verification_status ?? null);
       } catch (e) {
         setApiError(e.message);
@@ -82,11 +78,9 @@ export default function EditAtelier() {
         setFetching(false);
       }
     };
-
     fetchAtelier();
-  }, [accesToken]); // id retiré des dépendances — on charge toujours via /mine
+  }, [accesToken]);
 
-  // ── Validation
   const validate = () => {
     const e = {};
     if (!form.nom.trim())          e.nom          = 'Le nom est requis';
@@ -98,7 +92,7 @@ export default function EditAtelier() {
     return e;
   };
 
-  // ── Soumission
+  // ── POST /api/mon-atelier/update (multipart)
   const handleSubmit = async () => {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
@@ -107,21 +101,24 @@ export default function EditAtelier() {
     setApiError(null);
 
     try {
-      const res = await fetch(`/api/atelier/${atelierId}`, {
-        method: 'PUT',
+      const formData = new FormData();
+      formData.append('nom',          form.nom.trim());
+      formData.append('domaine',      form.domaine);
+      formData.append('localisation', form.localisation.trim());
+      formData.append('description',  form.description.trim());
+      if (imageFile) {
+        formData.append('image_principale', imageFile);
+      }
+
+      const res = await fetch('/api/mon-atelier/update', {
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Accept:         'application/json',
-          Authorization:  `Bearer ${accesToken}`,
+          Accept:        'application/json',
+          Authorization: `Bearer ${accesToken}`,
+          // Pas de Content-Type : laissé au navigateur pour FormData
         },
         credentials: 'include',
-        body: JSON.stringify({
-          nom:              form.nom.trim(),
-          domaine:          form.domaine,
-          localisation:     form.localisation.trim(),
-          description:      form.description.trim(),
-          image_principale: form.image_principale.trim() || null,
-        }),
+        body: formData,
       });
 
       const data = await res.json();
@@ -147,22 +144,13 @@ export default function EditAtelier() {
     }
   };
 
-  // ── Suppression
+  // ── Suppression — pas de route DELETE /api/mon-atelier dans le back
+  // On informe l'utilisateur (à implémenter côté back si nécessaire)
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/atelier/${atelierId}`, {
-        method: 'DELETE',
-        headers: {
-          Accept:        'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        },
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Erreur lors de la suppression');
-      navigate('/profile', { state: { atelierDeleted: true } });
-    } catch (e) {
-      setApiError(e.message);
+      // Route non disponible dans le back actuel — adapter si ajoutée
+      setApiError('La suppression d\'atelier n\'est pas encore disponible. Contactez un administrateur.');
       setShowDelete(false);
     } finally {
       setDeleting(false);
@@ -174,14 +162,19 @@ export default function EditAtelier() {
     if (errors[key]) setErrors(prev => ({ ...prev, [key]: null }));
   };
 
-  // ── Chargement
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
   if (fetching) return (
     <div className="flex items-center justify-center min-h-screen">
       <Loader className="w-10 h-10 animate-spin" style={{ color: '#4a6fa5' }} />
     </div>
   );
 
-  // ── Erreur de chargement
   if (apiError && !form.nom) return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-4">
       <p className="font-semibold text-red-600">⚠️ {apiError}</p>
@@ -192,7 +185,6 @@ export default function EditAtelier() {
     </div>
   );
 
-  // ── Succès
   if (success) return (
     <div className="flex items-center justify-center min-h-screen"
       style={{ background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)' }}>
@@ -217,7 +209,6 @@ export default function EditAtelier() {
       style={{ background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)' }}>
       <div className="max-w-2xl px-4 mx-auto sm:px-6">
 
-        {/* Breadcrumb */}
         <div className="mb-6">
           <Link to="/profile" className="inline-flex items-center gap-2 text-sm font-bold"
             style={{ color: '#4a6fa5' }}>
@@ -225,7 +216,6 @@ export default function EditAtelier() {
           </Link>
         </div>
 
-        {/* Header */}
         <div className="flex items-start justify-between mb-8">
           <div>
             <h1 className="mb-2 text-3xl font-black" style={{ color: '#2b2d42' }}>
@@ -238,7 +228,6 @@ export default function EditAtelier() {
           </div>
         </div>
 
-        {/* Avertissement si atelier approuvé */}
         {statusBadge === 'approved' && (
           <div className="flex items-start gap-3 p-4 mb-6 border-2 rounded-xl"
             style={{ backgroundColor: 'rgba(251,191,36,0.05)', borderColor: 'rgba(251,191,36,0.3)' }}>
@@ -249,14 +238,12 @@ export default function EditAtelier() {
           </div>
         )}
 
-        {/* Erreur API (hors erreur de chargement) */}
         {apiError && form.nom && (
           <div className="p-4 mb-6 text-sm font-semibold text-red-700 border-2 border-red-200 bg-red-50 rounded-xl">
             ⚠️ {apiError}
           </div>
         )}
 
-        {/* Formulaire */}
         <div className="p-8 bg-white shadow-xl rounded-2xl">
           <div className="space-y-6">
 
@@ -270,7 +257,7 @@ export default function EditAtelier() {
                   style={{ color: '#4a6fa5', opacity: 0.5 }} />
                 <input type="text" value={form.nom}
                   onChange={(e) => handleChange('nom', e.target.value)}
-                  placeholder="Ex: Atelier Kouassi Plomberie" maxLength={150}
+                  placeholder="Ex: Atelier Kouassi Plomberie" maxLength={255}
                   className={`w-full h-12 pl-12 pr-4 border-2 rounded-xl outline-none transition-all ${
                     errors.nom ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-400'
                   }`}
@@ -342,32 +329,29 @@ export default function EditAtelier() {
               </div>
             </div>
 
-            {/* Image */}
+            {/* Image — upload fichier */}
             <div>
               <label className="block mb-2 text-sm font-bold" style={{ color: '#2b2d42' }}>
                 Image principale <span className="font-normal text-gray-400">(optionnel)</span>
               </label>
-              <div className="relative">
-                <Image className="absolute w-5 h-5 -translate-y-1/2 pointer-events-none left-4 top-1/2"
-                  style={{ color: '#4a6fa5', opacity: 0.5 }} />
-                <input type="url" value={form.image_principale}
-                  onChange={(e) => handleChange('image_principale', e.target.value)}
-                  placeholder="https://exemple.com/image.jpg"
-                  className="w-full h-12 pl-12 pr-4 transition-all border-2 border-gray-200 outline-none rounded-xl focus:border-blue-400"
-                  style={{ color: '#2b2d42' }} />
-              </div>
-              {form.image_principale && (
+              <label className="flex items-center gap-2 px-4 py-3 text-sm font-bold transition-all border-2 border-dashed cursor-pointer rounded-xl hover:border-blue-400"
+                style={{ borderColor: '#d1d5db', color: '#4a6fa5' }}>
+                <Image className="w-5 h-5" />
+                {imageFile ? imageFile.name : 'Changer l\'image'}
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+              </label>
+              {imagePreview && (
                 <div className="h-40 mt-3 overflow-hidden rounded-xl">
-                  <img src={form.image_principale} alt="Aperçu"
+                  <img src={imagePreview} alt="Aperçu"
                     className="object-cover w-full h-full"
                     onError={(e) => { e.target.style.display = 'none'; }} />
                 </div>
               )}
+              <p className="mt-1 text-xs text-gray-400">Formats acceptés : JPG, PNG, WEBP (max 4 Mo)</p>
             </div>
 
           </div>
 
-          {/* Boutons */}
           <div className="flex gap-4 mt-8">
             <Link to="/profile" className="flex-1">
               <button className="w-full py-3 font-bold transition-all border-2 border-gray-200 rounded-xl hover:bg-gray-50"
@@ -389,7 +373,7 @@ export default function EditAtelier() {
         <div className="p-6 mt-6 bg-white border-2 border-red-100 shadow-lg rounded-2xl">
           <h3 className="mb-2 text-lg font-bold text-red-600">Zone de danger</h3>
           <p className="mb-4 text-sm text-gray-500">
-            La suppression de votre atelier est irréversible. Toutes vos offres et avis seront perdus.
+            Pour supprimer votre atelier, veuillez contacter un administrateur.
           </p>
           {!showDelete ? (
             <button onClick={() => setShowDelete(true)}
@@ -399,7 +383,7 @@ export default function EditAtelier() {
           ) : (
             <div className="p-4 border-2 border-red-200 bg-red-50 rounded-xl">
               <p className="mb-4 text-sm font-semibold text-red-700">
-                ⚠️ Êtes-vous sûr ? Cette action est irréversible.
+                ⚠️ Cette action est irréversible. Êtes-vous sûr ?
               </p>
               <div className="flex gap-3">
                 <button onClick={() => setShowDelete(false)}
@@ -411,7 +395,7 @@ export default function EditAtelier() {
                   className="flex items-center justify-center flex-1 gap-2 py-2 text-sm font-bold text-white transition-all bg-red-500 rounded-xl hover:bg-red-600 disabled:opacity-60">
                   {deleting
                     ? <><Loader className="w-4 h-4 animate-spin" /> Suppression...</>
-                    : <><Trash2 className="w-4 h-4" /> Confirmer la suppression</>}
+                    : <><Trash2 className="w-4 h-4" /> Confirmer</>}
                 </button>
               </div>
             </div>

@@ -11,21 +11,22 @@ const DOMAINES = [
 
 export default function CreateAtelier() {
   const navigate       = useNavigate();
-  const { accesToken } = useAuth(); // user retiré — non utilisé
+  const { accesToken } = useAuth();
 
   const [form, setForm] = useState({
-    nom:              '',
-    domaine:          '',
-    localisation:     '',
-    description:      '',
-    image_principale: '',
+    nom:          '',
+    domaine:      '',
+    localisation: '',
+    description:  '',
   });
-  const [errors,   setErrors]   = useState({});
-  const [loading,  setLoading]  = useState(false);
-  const [success,  setSuccess]  = useState(false);
-  const [apiError, setApiError] = useState(null);
+  // Fichier image séparé (le back attend un vrai fichier, pas une URL)
+  const [imageFile,    setImageFile]    = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [errors,       setErrors]       = useState({});
+  const [loading,      setLoading]      = useState(false);
+  const [success,      setSuccess]      = useState(false);
+  const [apiError,     setApiError]     = useState(null);
 
-  // ── Validation locale
   const validate = () => {
     const e = {};
     if (!form.nom.trim())          e.nom          = 'Le nom est requis';
@@ -37,7 +38,6 @@ export default function CreateAtelier() {
     return e;
   };
 
-  // ── Soumission
   const handleSubmit = async () => {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
@@ -47,21 +47,25 @@ export default function CreateAtelier() {
     setErrors({});
 
     try {
-      const res = await fetch('/api/atelier', {
+      // Le back attend multipart/form-data (image_principale est un fichier)
+      const formData = new FormData();
+      formData.append('nom',          form.nom.trim());
+      formData.append('domaine',      form.domaine);
+      formData.append('localisation', form.localisation.trim());
+      formData.append('description',  form.description.trim());
+      if (imageFile) {
+        formData.append('image_principale', imageFile);
+      }
+
+      const res = await fetch('/api/mon-atelier', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Accept:         'application/json',
-          Authorization:  `Bearer ${accesToken}`,
+          Accept:        'application/json',
+          Authorization: `Bearer ${accesToken}`,
+          // NE PAS mettre Content-Type ici : le navigateur le gère automatiquement avec FormData
         },
         credentials: 'include',
-        body: JSON.stringify({
-          nom:              form.nom.trim(),
-          domaine:          form.domaine,
-          localisation:     form.localisation.trim(),
-          description:      form.description.trim(),
-          image_principale: form.image_principale.trim() || null,
-        }),
+        body: formData,
       });
 
       const data = await res.json();
@@ -92,7 +96,13 @@ export default function CreateAtelier() {
     if (errors[key]) setErrors(prev => ({ ...prev, [key]: null }));
   };
 
-  // ── Succès
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
   if (success) return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-6"
       style={{ background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)' }}>
@@ -118,7 +128,6 @@ export default function CreateAtelier() {
       style={{ background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)' }}>
       <div className="max-w-2xl px-4 mx-auto sm:px-6">
 
-        {/* Breadcrumb */}
         <div className="mb-6">
           <Link to="/profile" className="inline-flex items-center gap-2 text-sm font-bold"
             style={{ color: '#4a6fa5' }}>
@@ -126,7 +135,6 @@ export default function CreateAtelier() {
           </Link>
         </div>
 
-        {/* Header */}
         <div className="mb-8 text-center">
           <div className="flex items-center justify-center w-20 h-20 mx-auto mb-4 rounded-full"
             style={{ background: 'linear-gradient(135deg, #ff7e5f, #feb47b)' }}>
@@ -136,7 +144,6 @@ export default function CreateAtelier() {
           <p className="text-gray-500">Présentez vos services aux clients de façon professionnelle</p>
         </div>
 
-        {/* Info validation */}
         <div className="flex items-start gap-3 p-4 mb-6 border-2 rounded-xl"
           style={{ backgroundColor: 'rgba(74,111,165,0.05)', borderColor: 'rgba(74,111,165,0.2)' }}>
           <CheckCircle className="flex-shrink-0 w-5 h-5 mt-0.5" style={{ color: '#4a6fa5' }} />
@@ -146,14 +153,12 @@ export default function CreateAtelier() {
           </p>
         </div>
 
-        {/* Erreur API */}
         {apiError && (
           <div className="p-4 mb-6 text-sm font-semibold text-red-700 border-2 border-red-200 bg-red-50 rounded-xl">
             ⚠️ {apiError}
           </div>
         )}
 
-        {/* Formulaire */}
         <div className="p-8 bg-white shadow-xl rounded-2xl">
           <div className="space-y-6">
 
@@ -167,7 +172,7 @@ export default function CreateAtelier() {
                   style={{ color: '#4a6fa5', opacity: 0.5 }} />
                 <input type="text" placeholder="Ex: Atelier Kouassi Plomberie"
                   value={form.nom} onChange={(e) => handleChange('nom', e.target.value)}
-                  maxLength={150}
+                  maxLength={255}
                   className={`w-full h-12 pl-12 pr-4 border-2 rounded-xl transition-all outline-none ${
                     errors.nom ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-400'
                   }`}
@@ -239,33 +244,29 @@ export default function CreateAtelier() {
               </div>
             </div>
 
-            {/* Image principale */}
+            {/* Image principale — upload fichier (pas URL) */}
             <div>
               <label className="block mb-2 text-sm font-bold" style={{ color: '#2b2d42' }}>
                 Image principale <span className="font-normal text-gray-400">(optionnel)</span>
               </label>
-              <div className="relative">
-                <Image className="absolute w-5 h-5 -translate-y-1/2 left-4 top-1/2"
-                  style={{ color: '#4a6fa5', opacity: 0.5 }} />
-                <input type="url" placeholder="https://exemple.com/image.jpg"
-                  value={form.image_principale}
-                  onChange={(e) => handleChange('image_principale', e.target.value)}
-                  className="w-full h-12 pl-12 pr-4 transition-all border-2 border-gray-200 outline-none rounded-xl focus:border-blue-400"
-                  style={{ color: '#2b2d42' }} />
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 px-4 py-3 text-sm font-bold transition-all border-2 border-dashed cursor-pointer rounded-xl hover:border-blue-400"
+                  style={{ borderColor: '#d1d5db', color: '#4a6fa5' }}>
+                  <Image className="w-5 h-5" />
+                  {imageFile ? imageFile.name : 'Choisir une image'}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                </label>
               </div>
-              {form.image_principale && (
+              {imagePreview && (
                 <div className="h-40 mt-3 overflow-hidden rounded-xl">
-                  <img src={form.image_principale} alt="Aperçu"
-                    className="object-cover w-full h-full"
-                    onError={(e) => { e.target.style.display = 'none'; }} />
+                  <img src={imagePreview} alt="Aperçu" className="object-cover w-full h-full" />
                 </div>
               )}
-              <p className="mt-1 text-xs text-gray-400">Entrez l'URL d'une image pour illustrer votre atelier</p>
+              <p className="mt-1 text-xs text-gray-400">Formats acceptés : JPG, PNG, WEBP (max 4 Mo)</p>
             </div>
 
           </div>
 
-          {/* Boutons */}
           <div className="flex gap-4 mt-8">
             <Link to="/profile" className="flex-1">
               <button className="w-full py-3 font-bold transition-all border-2 border-gray-200 rounded-xl hover:bg-gray-50"

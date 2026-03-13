@@ -28,8 +28,11 @@ import ClientProfile from "./Clients/pages/Profile/ClientProfile";
 import EditProfile   from "./Clients/pages/Profile/EditProfile";
 
 // Atelier
-import CreateAtelier from "./Clients/pages/Atelier/CreateAtelier";
-import EditAtelier   from "./Clients/pages/Atelier/EditAtelier";
+import CreateAtelier   from "./Clients/pages/Atelier/CreateAtelier";
+import EditAtelier     from "./Clients/pages/Atelier/EditAtelier";
+import GestionHoraires from "./Clients/pages/Atelier/GestionHoraires";
+import GestionOeuvres  from "./Clients/pages/Atelier/GestionOeuvres";
+import GestionOffres   from "./Clients/pages/Atelier/GestionOffres";
 
 // Reviews
 import WriteReview from "./Clients/pages/Reviews/WriteReview";
@@ -166,6 +169,30 @@ function App() {
             <ClientLayout>
               <ProtectedRoute allowedRoles={['ARTISAN']}>
                 <EditAtelier />
+              </ProtectedRoute>
+            </ClientLayout>
+          } />
+
+          <Route path="/atelier/horaires" element={
+            <ClientLayout>
+              <ProtectedRoute allowedRoles={['ARTISAN']}>
+                <GestionHoraires />
+              </ProtectedRoute>
+            </ClientLayout>
+          } />
+
+          <Route path="/atelier/oeuvres" element={
+            <ClientLayout>
+              <ProtectedRoute allowedRoles={['ARTISAN']}>
+                <GestionOeuvres />
+              </ProtectedRoute>
+            </ClientLayout>
+          } />
+
+          <Route path="/atelier/offres" element={
+            <ClientLayout>
+              <ProtectedRoute allowedRoles={['ARTISAN']}>
+                <GestionOffres />
               </ProtectedRoute>
             </ClientLayout>
           } />

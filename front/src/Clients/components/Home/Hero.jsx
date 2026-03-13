@@ -41,24 +41,7 @@ export default function Hero() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <div className="p-6 bg-white shadow-lg rounded-xl" style={{ border: '1px solid var(--gray-dark)' }}>
-              <div className="mb-1 text-3xl font-black" style={{ color: '#ff7e5f' }}>2,500+</div>
-              <div className="text-xs" style={{ color: 'var(--dark)', opacity: 0.6 }}>Artisans actifs</div>
-            </div>
-            <div className="p-6 bg-white shadow-lg rounded-xl" style={{ border: '1px solid var(--gray-dark)' }}>
-              <div className="mb-1 text-3xl font-black" style={{ color: '#ff7e5f' }}>15K+</div>
-              <div className="text-xs" style={{ color: 'var(--dark)', opacity: 0.6 }}>Clients satisfaits</div>
-            </div>
-            <div className="p-6 bg-white shadow-lg rounded-xl" style={{ border: '1px solid var(--gray-dark)' }}>
-              <div className="mb-1 text-3xl font-black" style={{ color: '#ff7e5f' }}>50+</div>
-              <div className="text-xs" style={{ color: 'var(--dark)', opacity: 0.6 }}>Catégories</div>
-            </div>
-            <div className="p-6 bg-white shadow-lg rounded-xl" style={{ border: '1px solid var(--gray-dark)' }}>
-              <div className="mb-1 text-3xl font-black" style={{ color: '#ff7e5f' }}>4.8★</div>
-              <div className="text-xs" style={{ color: 'var(--dark)', opacity: 0.6 }}>Note moyenne</div>
-            </div>
-          </div>
+
         </div>
       </div>
     </section>

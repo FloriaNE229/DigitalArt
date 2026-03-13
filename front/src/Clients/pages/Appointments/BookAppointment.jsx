@@ -1,65 +1,63 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock, MapPin, FileText, CheckCircle, Loader } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, FileText, CheckCircle, Loader } from 'lucide-react';
 import { useAuth } from '../../components/Auth/AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-
 export default function BookAppointment() {
-  const { artisanId } = useParams();
-  const navigate = useNavigate();
-  const { token, user } = useAuth();
+  const { artisanId } = useParams(); // ici c'est en réalité l'atelier_id
+  const navigate      = useNavigate();
+  const { accesToken } = useAuth();
 
-  const [loading,      setLoading]      = useState(false);
-  const [success,      setSuccess]      = useState(false);
-  const [errors,       setErrors]       = useState({});
-  const [apiError,     setApiError]     = useState('');
-  const [artisan,      setArtisan]      = useState(null);
-  const [disponibilite,setDisponibilite]= useState([]);
-  const [atelierInfo,  setAtelierInfo]  = useState(null);
+  const [loading,     setLoading]     = useState(false);
+  const [success,     setSuccess]     = useState(false);
+  const [errors,      setErrors]      = useState({});
+  const [apiError,    setApiError]    = useState('');
+  const [atelierInfo, setAtelierInfo] = useState(null);
+  const [disponibilite, setDisponibilite] = useState([]);
 
+  // Champs exacts attendus par le back :
+  // atelier_id, date_rdv, duree_minutes (opt), message (opt)
   const [formData, setFormData] = useState({
-    date_heure: '',
-    description: '',
-    adresse: '',
+    date_rdv:       '',
+    duree_minutes:  60,
+    message:        '',
   });
 
-  // GET /ateliers/{id} + GET /ateliers/{id}/disponibilite
+  // GET /api/ateliers/{id} + GET /api/ateliers/{id}/disponibilite
   useEffect(() => {
     if (!artisanId) return;
-    const fetch_info = async () => {
+    const fetchInfo = async () => {
       try {
-        const [resAtelier, resDisponibilite] = await Promise.all([
-          fetch(`${API_URL}/ateliers/${artisanId}`, {
-            headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+        const [resAtelier, resDisp] = await Promise.all([
+          fetch(`/api/ateliers/${artisanId}`, {
+            headers: { Accept: 'application/json', Authorization: `Bearer ${accesToken}` },
+            credentials: 'include',
           }),
-          fetch(`${API_URL}/ateliers/${artisanId}/disponibilite`, {
-            headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+          fetch(`/api/ateliers/${artisanId}/disponibilite`, {
+            headers: { Accept: 'application/json', Authorization: `Bearer ${accesToken}` },
+            credentials: 'include',
           }),
         ]);
         if (resAtelier.ok) {
           const data = await resAtelier.json();
           setAtelierInfo(data.atelier ?? data);
-          setArtisan(data.atelier?.user ?? data.artisan ?? null);
         }
-        if (resDisponibilite.ok) {
-          const data = await resDisponibilite.json();
+        if (resDisp.ok) {
+          const data = await resDisp.json();
           setDisponibilite(data.disponibilites ?? data.slots ?? []);
         }
       } catch { /* ignore */ }
     };
-    fetch_info();
-  }, [artisanId, token]);
+    fetchInfo();
+  }, [artisanId, accesToken]);
 
   const validate = () => {
     const e = {};
-    if (!formData.date_heure)  e.date_heure  = 'Date et heure requises';
-    if (!formData.description) e.description = 'Description requise';
-    if (!formData.adresse)     e.adresse     = 'Adresse requise';
+    if (!formData.date_rdv) e.date_rdv = 'Date et heure requises';
     return e;
   };
 
-  // POST /rendez-vous
+  // POST /api/rendez-vous
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = validate();
@@ -69,21 +67,20 @@ export default function BookAppointment() {
     setApiError('');
 
     try {
-      const payload = {
-        atelier_id:  artisanId,
-        date_heure:  formData.date_heure,
-        description: formData.description,
-        adresse:     formData.adresse,
-      };
-
-      const res = await fetch(`${API_URL}/rendez-vous`, {
+      const res = await fetch('/api/rendez-vous', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Accept:          'application/json',
-          Authorization:   `Bearer ${token}`,
+          Authorization:   `Bearer ${accesToken}`,
         },
-        body: JSON.stringify(payload),
+        credentials: 'include',
+        body: JSON.stringify({
+          atelier_id:    Number(artisanId),
+          date_rdv:      formData.date_rdv,
+          duree_minutes: Number(formData.duree_minutes) || 60,
+          message:       formData.message || undefined,
+        }),
       });
 
       const data = await res.json();
@@ -114,12 +111,7 @@ export default function BookAppointment() {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  // Pré-remplir l'adresse avec celle de l'utilisateur connecté
-  useEffect(() => {
-    if (user?.adresse && !formData.adresse) {
-      setFormData(prev => ({ ...prev, adresse: user.adresse }));
-    }
-  }, [user]);
+  const artisanName = atelierInfo?.nom ?? 'Artisan';
 
   if (success) return (
     <div className="flex items-center justify-center min-h-screen pt-24 pb-20" style={{ backgroundColor: '#f8f9fa' }}>
@@ -139,15 +131,10 @@ export default function BookAppointment() {
     </div>
   );
 
-  const artisanName = artisan
-    ? `${artisan.prenom ?? ''} ${artisan.nom ?? ''}`.trim()
-    : atelierInfo?.nom ?? 'Artisan';
-
   return (
     <div className="min-h-screen pt-24 pb-20" style={{ backgroundColor: '#f8f9fa' }}>
       <div className="max-w-5xl px-4 mx-auto sm:px-6 lg:px-8">
 
-        {/* Header */}
         <button onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 mb-6 text-sm font-bold"
           style={{ color: '#4a6fa5' }}>
@@ -160,7 +147,8 @@ export default function BookAppointment() {
             <Calendar className="w-4 h-4" /> Nouveau rendez-vous
           </div>
           <h1 className="mb-2 text-4xl font-black md:text-5xl" style={{ color: '#2b2d42' }}>
-            Prendre un <span className="text-transparent bg-clip-text"
+            Prendre un{' '}
+            <span className="text-transparent bg-clip-text"
               style={{ background: 'linear-gradient(90deg, #4a6fa5, #6b8fc7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               rendez-vous
             </span>
@@ -169,6 +157,7 @@ export default function BookAppointment() {
         </div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+
           {/* Formulaire */}
           <div className="lg:col-span-2">
             <div className="p-8 bg-white shadow-lg rounded-2xl">
@@ -181,19 +170,23 @@ export default function BookAppointment() {
 
               <form onSubmit={handleSubmit} className="space-y-6">
 
-                {/* Date et heure */}
+                {/* Date et heure → date_rdv */}
                 <div>
                   <label className="block mb-2 text-sm font-bold" style={{ color: '#2b2d42' }}>
                     Date et heure <span style={{ color: '#ff7e5f' }}>*</span>
                   </label>
                   <div className="relative">
-                    <Calendar className="absolute w-5 h-5 -translate-y-1/2 left-4 top-1/2" style={{ color: '#4a6fa5', opacity: 0.5 }} />
-                    <input type="datetime-local" name="date_heure" value={formData.date_heure} onChange={handleChange}
-                      min={new Date().toISOString().slice(0, 16)}
-                      className={`w-full h-12 pl-12 pr-4 border-2 rounded-xl outline-none transition-all ${errors.date_heure ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-400'}`}
+                    <Calendar className="absolute w-5 h-5 -translate-y-1/2 left-4 top-1/2"
+                      style={{ color: '#4a6fa5', opacity: 0.5 }} />
+                    <input type="datetime-local" name="date_rdv" value={formData.date_rdv}
+                      onChange={handleChange}
+                      min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                      className={`w-full h-12 pl-12 pr-4 border-2 rounded-xl outline-none transition-all ${
+                        errors.date_rdv ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-400'
+                      }`}
                       style={{ color: '#2b2d42' }} />
                   </div>
-                  {errors.date_heure && <p className="mt-1 text-xs text-red-500">{errors.date_heure}</p>}
+                  {errors.date_rdv && <p className="mt-1 text-xs text-red-500">{errors.date_rdv}</p>}
 
                   {/* Créneaux disponibles */}
                   {disponibilite.length > 0 && (
@@ -202,12 +195,12 @@ export default function BookAppointment() {
                       <div className="flex flex-wrap gap-2">
                         {disponibilite.map((slot, i) => (
                           <button key={i} type="button"
-                            onClick={() => setFormData(prev => ({ ...prev, date_heure: slot }))}
+                            onClick={() => setFormData(prev => ({ ...prev, date_rdv: slot }))}
                             className="px-3 py-1 text-xs font-bold transition-all border-2 rounded-lg"
                             style={{
-                              borderColor: formData.date_heure === slot ? '#4a6fa5' : '#e9ecef',
-                              backgroundColor: formData.date_heure === slot ? 'rgba(74,111,165,0.1)' : 'white',
-                              color: '#2b2d42'
+                              borderColor:     formData.date_rdv === slot ? '#4a6fa5' : '#e9ecef',
+                              backgroundColor: formData.date_rdv === slot ? 'rgba(74,111,165,0.1)' : 'white',
+                              color: '#2b2d42',
                             }}>
                             {new Date(slot).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </button>
@@ -217,38 +210,45 @@ export default function BookAppointment() {
                   )}
                 </div>
 
-                {/* Description du service */}
+                {/* Durée → duree_minutes */}
                 <div>
                   <label className="block mb-2 text-sm font-bold" style={{ color: '#2b2d42' }}>
-                    Description du service <span style={{ color: '#ff7e5f' }}>*</span>
+                    Durée estimée
                   </label>
                   <div className="relative">
-                    <FileText className="absolute w-5 h-5 pointer-events-none left-4 top-4" style={{ color: '#4a6fa5', opacity: 0.5 }} />
-                    <textarea name="description" value={formData.description} onChange={handleChange}
-                      placeholder="Décrivez le service dont vous avez besoin..."
-                      rows={4}
-                      className={`w-full py-3 pl-12 pr-4 border-2 rounded-xl outline-none resize-none transition-all ${errors.description ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-400'}`}
-                      style={{ color: '#2b2d42' }} />
+                    <Clock className="absolute w-5 h-5 -translate-y-1/2 left-4 top-1/2"
+                      style={{ color: '#4a6fa5', opacity: 0.5 }} />
+                    <select name="duree_minutes" value={formData.duree_minutes} onChange={handleChange}
+                      className="w-full h-12 pl-12 pr-4 border-2 border-gray-200 outline-none appearance-none rounded-xl focus:border-blue-400"
+                      style={{ color: '#2b2d42' }}>
+                      <option value={30}>30 minutes</option>
+                      <option value={60}>1 heure</option>
+                      <option value={90}>1h30</option>
+                      <option value={120}>2 heures</option>
+                      <option value={180}>3 heures</option>
+                      <option value={240}>4 heures</option>
+                      <option value={480}>Journée complète</option>
+                    </select>
                   </div>
-                  {errors.description && <p className="mt-1 text-xs text-red-500">{errors.description}</p>}
                 </div>
 
-                {/* Adresse */}
+                {/* Message → message */}
                 <div>
                   <label className="block mb-2 text-sm font-bold" style={{ color: '#2b2d42' }}>
-                    Adresse d'intervention <span style={{ color: '#ff7e5f' }}>*</span>
+                    Message pour l'artisan <span className="font-normal text-gray-400">(optionnel)</span>
                   </label>
                   <div className="relative">
-                    <MapPin className="absolute w-5 h-5 -translate-y-1/2 left-4 top-1/2" style={{ color: '#4a6fa5', opacity: 0.5 }} />
-                    <input type="text" name="adresse" value={formData.adresse} onChange={handleChange}
-                      placeholder="Rue, quartier, ville..."
-                      className={`w-full h-12 pl-12 pr-4 border-2 rounded-xl outline-none transition-all ${errors.adresse ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-400'}`}
+                    <FileText className="absolute w-5 h-5 pointer-events-none left-4 top-4"
+                      style={{ color: '#4a6fa5', opacity: 0.5 }} />
+                    <textarea name="message" value={formData.message} onChange={handleChange}
+                      placeholder="Décrivez brièvement votre besoin…"
+                      rows={4} maxLength={1000}
+                      className="w-full py-3 pl-12 pr-4 border-2 border-gray-200 outline-none resize-none rounded-xl focus:border-blue-400"
                       style={{ color: '#2b2d42' }} />
                   </div>
-                  {errors.adresse && <p className="mt-1 text-xs text-red-500">{errors.adresse}</p>}
+                  <span className="text-xs text-gray-400">{formData.message.length}/1000</span>
                 </div>
 
-                {/* Boutons */}
                 <div className="flex gap-4 pt-6 border-t" style={{ borderColor: '#e9ecef' }}>
                   <button type="button" onClick={() => navigate(-1)}
                     className="flex-1 py-3 font-bold border-2 border-gray-200 rounded-xl hover:bg-gray-50"
@@ -260,7 +260,7 @@ export default function BookAppointment() {
                     style={{ background: 'linear-gradient(135deg, #4a6fa5, #3a5784)' }}>
                     {loading ? (
                       <div className="flex items-center justify-center gap-2">
-                        <div className="w-5 h-5 border-2 border-white rounded-full border-t-transparent animate-spin"></div>
+                        <div className="w-5 h-5 border-2 border-white rounded-full border-t-transparent animate-spin" />
                         Envoi...
                       </div>
                     ) : 'Confirmer le rendez-vous'}
@@ -270,10 +270,10 @@ export default function BookAppointment() {
             </div>
           </div>
 
-          {/* Sidebar artisan */}
+          {/* Sidebar */}
           <div className="lg:col-span-1">
             <div className="sticky p-6 bg-white shadow-lg rounded-2xl top-24">
-              <h3 className="mb-4 text-lg font-bold" style={{ color: '#2b2d42' }}>Artisan sélectionné</h3>
+              <h3 className="mb-4 text-lg font-bold" style={{ color: '#2b2d42' }}>Atelier sélectionné</h3>
 
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center justify-center w-16 h-16 text-2xl font-black text-white rounded-xl"
