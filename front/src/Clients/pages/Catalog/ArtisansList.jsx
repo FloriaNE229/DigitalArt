@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, MapPin, Star, SlidersHorizontal, ChevronDown, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import Card from '../../components/Common/Card';
+import Card   from '../../components/Common/Card';
 import Button from '../../components/Common/Button';
-import Input from '../../components/Common/Input';
+import Input  from '../../components/Common/Input';
+//import { atelierAPI } from '../../../../services/api'; // adapte le chemin
 
 const CATEGORIES = [
   { value: 'all',         label: 'Toutes catégories' },
@@ -20,14 +21,13 @@ const CATEGORIES = [
 const ITEMS_PER_PAGE = 9;
 
 function AtelierCard({ atelier }) {
-  // Normalisation des champs retournés par le back
-  const name     = atelier.nom ?? '';
-  const domaine  = atelier.domaine ?? '';
-  const location = atelier.localisation ?? '';
-  const photo    = atelier.image_principale ?? null;
-  const rating   = atelier.avis_avg_note ? Number(atelier.avis_avg_note).toFixed(1) : null;
-  const avisCount= atelier.avis_count ?? 0;
-  const initiale = name.charAt(0).toUpperCase();
+  const name      = atelier.nom          ?? '';
+  const domaine   = atelier.domaine      ?? '';
+  const location  = atelier.localisation ?? '';
+  const photo     = atelier.image_url    ?? atelier.image_principale ?? null;
+  const rating    = atelier.avis_avg_note ? Number(atelier.avis_avg_note).toFixed(1) : null;
+  const avisCount = atelier.avis_count   ?? 0;
+  const initiale  = name.charAt(0).toUpperCase();
 
   return (
     <Link to={`/artisan/${atelier.id}`}>
@@ -88,7 +88,6 @@ function AtelierCard({ atelier }) {
 export default function ArtisansList() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Params URL → params back
   const urlSearch   = searchParams.get('search')    || '';
   const urlLocation = searchParams.get('location')  || '';
   const urlCategory = searchParams.get('category')  || 'all';
@@ -98,19 +97,19 @@ export default function ArtisansList() {
 
   const [inputSearch,   setInputSearch]   = useState(urlSearch);
   const [inputLocation, setInputLocation] = useState(urlLocation);
-
-  const [ateliers,   setAteliers]   = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState(null);
-  const [showFilters,setShowFilters]= useState(false);
-  const [retryCount, setRetryCount] = useState(0);
+  const [ateliers,      setAteliers]      = useState([]);
+  const [totalCount,    setTotalCount]    = useState(0);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState(null);
+  const [showFilters,   setShowFilters]   = useState(false);
+  const [retryCount,    setRetryCount]    = useState(0);
 
   useEffect(() => {
     setInputSearch(urlSearch);
     setInputLocation(urlLocation);
   }, [urlSearch, urlLocation]);
 
+  // ── GET /ateliers?params ───────────────────────────────────
   useEffect(() => {
     const controller = new AbortController();
 
@@ -118,7 +117,6 @@ export default function ArtisansList() {
       setLoading(true);
       setError(null);
       try {
-        // Mapping vers les params attendus par le back
         const params = new URLSearchParams();
         if (urlSearch)             params.set('recherche',    urlSearch);
         if (urlLocation)           params.set('localisation', urlLocation);
@@ -126,20 +124,23 @@ export default function ArtisansList() {
         if (urlRating)             params.set('note_min',     String(urlRating));
         params.set('tri',      urlTri);
         params.set('par_page', String(ITEMS_PER_PAGE));
-        // pagination Laravel = page
-        if (urlPage > 1) params.set('page', String(urlPage));
+        if (urlPage > 1)           params.set('page',         String(urlPage));
 
-        const res = await fetch(`/api/ateliers?${params}`, {
-          headers:     { Accept: 'application/json' },
-          credentials: 'include',
-          signal:      controller.signal,
+        // Utilise http() de api.js via fetch direct avec AbortController
+        // (atelierAPI.index ne supporte pas les params ni AbortController)
+        const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${BASE}/ateliers?${params}`, {
+          headers: {
+            Accept: 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          signal: controller.signal,
         });
 
         if (!res.ok) throw new Error(`Erreur serveur ${res.status}`);
-
         const json = await res.json();
 
-        // Laravel paginate retourne { data, total, ... }
         if (Array.isArray(json.data)) {
           setAteliers(json.data);
           setTotalCount(json.total ?? json.data.length);
@@ -166,21 +167,17 @@ export default function ArtisansList() {
 
   const pushParams = useCallback((overrides = {}) => {
     const next = {
-      search:    inputSearch,
-      location:  inputLocation,
-      category:  urlCategory,
-      minRating: String(urlRating),
-      tri:       urlTri,
-      page:      '1',
-      ...overrides,
+      search: inputSearch, location: inputLocation,
+      category: urlCategory, minRating: String(urlRating),
+      tri: urlTri, page: '1', ...overrides,
     };
     const p = {};
-    if (next.search)               p.search    = next.search;
-    if (next.location)             p.location  = next.location;
-    if (next.category !== 'all')   p.category  = next.category;
-    if (Number(next.minRating))    p.minRating = next.minRating;
-    if (next.tri !== 'recent')     p.tri       = next.tri;
-    if (Number(next.page) > 1)     p.page      = next.page;
+    if (next.search)             p.search    = next.search;
+    if (next.location)           p.location  = next.location;
+    if (next.category !== 'all') p.category  = next.category;
+    if (Number(next.minRating))  p.minRating = next.minRating;
+    if (next.tri !== 'recent')   p.tri       = next.tri;
+    if (Number(next.page) > 1)   p.page      = next.page;
     setSearchParams(p);
   }, [inputSearch, inputLocation, urlCategory, urlRating, urlTri, setSearchParams]);
 
@@ -329,7 +326,6 @@ export default function ArtisansList() {
           </Card>
         )}
 
-        {/* Spinner */}
         {loading && (
           <div className="flex items-center justify-center py-20">
             <div className="w-12 h-12 border-4 rounded-full border-t-transparent animate-spin"

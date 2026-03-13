@@ -5,15 +5,15 @@ import { useAuth } from '../Auth/AuthContext';
 
 export default function Header() {
   const navigate = useNavigate();
-  const { user, accesToken, logout } = useAuth();
+  const { user, token, logout } = useAuth();
 
   const [isOpen,      setIsOpen]      = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const isLoggedIn = !!accesToken && !!user;
+  const isLoggedIn = !!token && !!user;
 
   const navLinks = [
-    { name: 'Accueil',          to: '/'          },
+    { name: 'Accueil',            to: '/'        },
     { name: 'Trouver un artisan', to: '/artisans' },
     ...(isLoggedIn ? [{ name: 'Mes demandes', to: '/my-services' }] : []),
   ];
@@ -99,14 +99,29 @@ export default function Header() {
                   </button>
                 </Link>
 
-                {/* Profil */}
+                {/* Avatar + Prénom */}
                 <Link to="/profile">
                   <button className="flex items-center gap-2 px-4 py-2 font-semibold transition-all border-2 rounded-xl hover:shadow-md"
                     style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
-                    <User className="w-4 h-4" />
+                    {user.photo_profil ? (
+                      <img src={user.photo_profil} alt={user.prenom}
+                        className="object-cover w-6 h-6 rounded-full" />
+                    ) : (
+                      <div className="flex items-center justify-center w-6 h-6 text-xs font-black text-white rounded-full"
+                        style={{ background: 'linear-gradient(135deg, #ff7e5f, #feb47b)' }}>
+                        {(user.prenom ?? user.email ?? '?').charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <span className="max-w-[100px] truncate text-sm">
-                      {user.prenom ?? user.name ?? 'Mon profil'}
+                      {user.prenom ?? user.nom ?? 'Mon profil'}
                     </span>
+                    {/* Badge rôle */}
+                    {user.role === 'ARTISAN' && (
+                      <span className="px-1.5 py-0.5 text-xs font-bold rounded-md text-white"
+                        style={{ backgroundColor: '#ff7e5f' }}>
+                        Artisan
+                      </span>
+                    )}
                   </button>
                 </Link>
 
@@ -182,13 +197,30 @@ export default function Header() {
             <div className="flex flex-col gap-2 pt-4 border-t" style={{ borderColor: 'var(--gray-dark)' }}>
               {isLoggedIn ? (
                 <>
+                  {/* Profil mobile */}
                   <Link to="/profile" onClick={() => setIsOpen(false)}>
                     <button className="flex items-center justify-center w-full gap-2 px-4 py-3 font-semibold transition-all border rounded-xl hover:shadow-md"
                       style={{ backgroundColor: 'var(--light)', color: 'var(--primary)', borderColor: 'var(--primary)' }}>
-                      <User className="w-4 h-4" />
-                      <span>{user.prenom ?? user.name ?? 'Mon Profil'}</span>
+                      {user.photo_profil ? (
+                        <img src={user.photo_profil} alt={user.prenom}
+                          className="object-cover w-6 h-6 rounded-full" />
+                      ) : (
+                        <div className="flex items-center justify-center w-6 h-6 text-xs font-black text-white rounded-full"
+                          style={{ background: 'linear-gradient(135deg, #ff7e5f, #feb47b)' }}>
+                          {(user.prenom ?? user.email ?? '?').charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span>{user.prenom ?? user.nom ?? 'Mon Profil'}</span>
+                      {user.role === 'ARTISAN' && (
+                        <span className="px-1.5 py-0.5 text-xs font-bold text-white rounded-md"
+                          style={{ backgroundColor: '#ff7e5f' }}>
+                          Artisan
+                        </span>
+                      )}
                     </button>
                   </Link>
+
+                  {/* Notifications mobile */}
                   <Link to="/notifications" onClick={() => setIsOpen(false)}>
                     <button className="flex items-center justify-center w-full gap-2 px-4 py-3 font-semibold transition-all border border-gray-200 rounded-xl hover:bg-gray-50"
                       style={{ color: 'var(--dark)' }}>
@@ -196,6 +228,8 @@ export default function Header() {
                       <span>Notifications</span>
                     </button>
                   </Link>
+
+                  {/* Déconnexion mobile */}
                   <button onClick={handleLogout}
                     className="flex items-center justify-center w-full gap-2 px-4 py-3 font-semibold text-red-500 transition-all border border-red-200 rounded-xl hover:bg-red-50">
                     <LogOut className="w-4 h-4" />

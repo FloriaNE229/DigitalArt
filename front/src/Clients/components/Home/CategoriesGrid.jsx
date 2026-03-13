@@ -1,76 +1,57 @@
-import { useNavigate } from "react-router-dom";
-import {
-  Wrench,
-  PlugZap,
-  Hammer,
-  Paintbrush,
-  HardHat,
-  KeyRound,
-} from "lucide-react";
-import { GiSewingNeedle, GiScissors } from "react-icons/gi";
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Wrench, PlugZap, Hammer, Paintbrush, HardHat, KeyRound } from 'lucide-react';
+import { GiSewingNeedle, GiScissors } from 'react-icons/gi';
+
+const CATEGORIES = [
+  { name: 'Plomberie',   value: 'Plomberie',   color: '#3b82f6', icon: Wrench         },
+  { name: 'Électricité', value: 'Électricité', color: '#eab308', icon: PlugZap         },
+  { name: 'Menuiserie',  value: 'Menuiserie',  color: '#f97316', icon: Hammer          },
+  { name: 'Peinture',    value: 'Peinture',    color: '#ec4899', icon: Paintbrush      },
+  { name: 'Maçonnerie',  value: 'Maçonnerie',  color: '#ef4444', icon: HardHat         },
+  { name: 'Couture',     value: 'Couture',     color: '#a855f7', icon: GiSewingNeedle  },
+  { name: 'Coiffure',    value: 'Coiffure',    color: '#22c55e', icon: GiScissors      },
+  { name: 'Mécanique',   value: 'Mécanique',   color: '#6b7280', icon: KeyRound        },
+];
 
 export default function CategoriesGrid() {
   const navigate = useNavigate();
+  const [counts,  setCounts]  = useState({});
+  const [loading, setLoading] = useState(true);
 
-  const categories = [
-    {
-      name: "Plomberie",
-      value: "plomberie",
-      color: "#3b82f6",
-      icon: Wrench,
-    },
-    {
-      name: "Électricité",
-      value: "electricite",
-      color: "#eab308",
-      icon: PlugZap,
-    },
-    {
-      name: "Menuiserie",
-      value: "menuiserie",
-      color: "#f97316",
-      icon: Hammer,
-    },
-    {
-      name: "Peinture",
-      value: "peinture",
-      color: "#ec4899",
-      icon: Paintbrush,
-    },
-    {
-      name: "Maçonnerie",
-      value: "maconnerie",
-      color: "#ef4444",
-      icon: HardHat,
-    },
-    {
-      name: "Couture",
-      value: "couture",
-      color: "#a855f7",
-      icon: GiSewingNeedle,
-    },
-    {
-      name: "Coiffure",
-      value: "coiffure",
-      color: "#22c55e",
-      icon: GiScissors,
-    },
-    {
-      name: "Mécanique",
-      value: "mecanique",
-      color: "#6b7280",
-      icon: KeyRound,
-    },
-  ];
+  // ── GET /ateliers → compteurs par domaine ──────────────────
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const BASE  = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+        const token = localStorage.getItem('token');
 
-  const handleCategoryClick = (category) => {
-    navigate(`/artisans?category=${category.value}`);
-  };
+        const res  = await fetch(`${BASE}/ateliers?par_page=999`, {
+          headers: {
+            Accept: 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        const list = json.data ?? json ?? [];
+
+        const c = {};
+        list.forEach(a => {
+          const d = a.domaine;
+          if (d) c[d] = (c[d] ?? 0) + 1;
+        });
+        setCounts(c);
+      } catch { /* silencieux — compteurs optionnels */ }
+      finally { setLoading(false); }
+    };
+    fetchCounts();
+  }, []);
 
   return (
     <section className="py-12" style={{ backgroundColor: '#f8fafc' }}>
       <div className="w-full max-w-3xl px-4 mx-auto sm:px-6">
-        
+
         {/* Header */}
         <div className="mb-10 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-4 text-xs font-semibold rounded-full"
@@ -81,7 +62,7 @@ export default function CategoriesGrid() {
 
           <h2 className="mb-3 text-3xl font-black md:text-4xl" style={{ color: '#2b2d42' }}>
             Explorez nos catégories
-            <span className="text-transparent bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text" 
+            <span className="text-transparent bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text"
               style={{ WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               {' '}d'artisanat
             </span>
@@ -92,17 +73,19 @@ export default function CategoriesGrid() {
           </p>
         </div>
 
-        {/* Grid encore plus étroit */}
+        {/* Grid */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {categories.map((category, index) => {
-            const Icon = category.icon;
+          {CATEGORIES.map((category) => {
+            const Icon  = category.icon;
+            const count = counts[category.value];
+
             return (
               <button
-                key={index}
-                onClick={() => handleCategoryClick(category)}
+                key={category.value}
+                onClick={() => navigate(`/artisans?category=${encodeURIComponent(category.value)}`)}
                 className="flex flex-col items-center gap-2 p-4 transition-all duration-300 bg-white border-2 border-gray-100 shadow-sm cursor-pointer rounded-xl hover:shadow-md hover:-translate-y-1 hover:border-gray-200 group"
               >
-                <Icon 
+                <Icon
                   className="w-8 h-8 transition-transform duration-300 group-hover:scale-110"
                   style={{ color: category.color }}
                   strokeWidth={2}
@@ -110,6 +93,15 @@ export default function CategoriesGrid() {
                 <span className="text-xs font-bold text-center" style={{ color: '#2b2d42' }}>
                   {category.name}
                 </span>
+                {!loading && count != null && (
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: `${category.color}18`, color: category.color }}>
+                    {count} artisan{count > 1 ? 's' : ''}
+                  </span>
+                )}
+                {loading && (
+                  <span className="w-12 h-4 rounded-full animate-pulse bg-gray-100" />
+                )}
               </button>
             );
           })}

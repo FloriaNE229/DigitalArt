@@ -1,100 +1,79 @@
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { authAPI } from '../../../../services/api';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-    const [user,        setUser]        = useState(null);
-    const [loading,     setLoading]     = useState(true);
-    const [accesToken,  setAccessToken] = useState(null);
-    const isRefreshing  = useRef(false);
+    const [user,    setUser]    = useState(null);
+    const [token,   setToken]   = useState(() => localStorage.getItem('token'));
+    const [loading, setLoading] = useState(true);
 
+    // Au montage : si un token existe en localStorage, on recharge l'utilisateur
     useEffect(() => {
-        const checkSession = async () => {
-            if (isRefreshing.current) return;
-            isRefreshing.current = true;
+        const restoreSession = async () => {
+            const savedToken = localStorage.getItem('token');
+            if (!savedToken) {
+                setLoading(false);
+                return;
+            }
             try {
-                await refreshAccessToken();
+                const data = await authAPI.me();   // GET /auth/me
+                setUser(data.user ?? data);
+                setToken(savedToken);
             } catch {
-                // Pas de session active — c'est normal (visiteur non connecté)
+                // Token invalide ou expiré → on nettoie
+                localStorage.removeItem('token');
                 setUser(null);
-                setAccessToken(null);
+                setToken(null);
             } finally {
                 setLoading(false);
-                isRefreshing.current = false;
             }
         };
-        checkSession();
+
+        restoreSession();
     }, []);
 
-    const refreshAccessToken = async () => {
-        const response = await fetch('/api/refresh', {
-            method:      'GET',
-            credentials: 'include',         // envoie le cookie refresh_token
-            headers:     { Accept: 'application/json' },
-        });
-
-        if (!response.ok) {
-            throw new Error('Session expirée');
-        }
-
-        const data = await response.json();
-
-        // L'API renvoie { accesToken, user, ... }
-        if (!data.accesToken || !data.user) {
-            throw new Error('Réponse API invalide');
-        }
-
-        setUser(data.user);
-        setAccessToken(data.accesToken);
-    };
-
     /** Appelé après login ou register */
-    const login = (userData, token) => {
+    const login = (userData, accessToken) => {
+        localStorage.setItem('token', accessToken);
+        setToken(accessToken);
         setUser(userData);
-        setAccessToken(token);
     };
 
-    /** Appelé au logout */
+    /** Déconnexion */
     const logout = async () => {
         try {
-            await fetch('/api/logout', {
-                method:      'POST',
-                credentials: 'include',
-                headers: {
-                    Accept:          'application/json',
-                    Authorization:   accesToken ? `Bearer ${accesToken}` : '',
-                },
-            });
+            await authAPI.logout();   // POST /auth/logout
         } catch {
             // On déconnecte côté client même si l'API échoue
         } finally {
+            localStorage.removeItem('token');
             setUser(null);
-            setAccessToken(null);
+            setToken(null);
         }
     };
 
     const value = {
         user,
+        token,
         login,
         logout,
-        refreshAccessToken,
-        isAuthenticated: !!user,
         loading,
-        accesToken,
+        isAuthenticated: !!user,
+        isClient:  user?.role === 'CLIENT',
+        isArtisan: user?.role === 'ARTISAN',
+        isAdmin:   user?.role === 'ADMIN',
     };
 
     return (
         <AuthContext.Provider value={value}>
-            {children}
+            {!loading && children}
         </AuthContext.Provider>
     );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
     const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth must be used within AuthProvider');
-    }
+    if (!context) throw new Error('useAuth must be used within AuthProvider');
     return context;
 }

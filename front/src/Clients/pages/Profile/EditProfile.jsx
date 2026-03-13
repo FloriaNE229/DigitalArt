@@ -4,21 +4,19 @@ import {
   ArrowLeft, User, Mail, Phone, Save,
   Camera, CheckCircle, Loader, Briefcase, Award, FileText
 } from 'lucide-react';
-import { useAuth } from '../../components/Auth/AuthContext';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { useAuth }   from '../../components/Auth/AuthContext';
+import { profilAPI } from '../../../../services/api';
 
 const EXPERIENCE_LEVELS = [
-  { value: 'debutant',      label: 'Débutant (0-2 ans)'      },
-  { value: 'intermediaire', label: 'Intermédiaire (3-5 ans)'  },
-  { value: 'expert',        label: 'Expert (6+ ans)'          },
+  { value: 'debutant',      label: 'Débutant (0-2 ans)'     },
+  { value: 'intermediaire', label: 'Intermédiaire (3-5 ans)' },
+  { value: 'expert',        label: 'Expert (6+ ans)'         },
 ];
 
 export default function EditProfile() {
-  const navigate = useNavigate();
+  const navigate       = useNavigate();
   const { user, token, login } = useAuth();
-
-  const isArtisan = user?.role === 'ARTISAN';
+  const isArtisan      = user?.role === 'ARTISAN';
 
   const [loading,  setLoading]  = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -37,18 +35,16 @@ export default function EditProfile() {
     photo_profil:     '',
   });
 
-  const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoFile,    setPhotoFile]    = useState(null);   // fichier brut
+  const [photoPreview, setPhotoPreview] = useState(null);   // aperçu base64
 
-  // Charger les données actuelles depuis GET /profil
+  // ── GET /profil ────────────────────────────────────────────
   useEffect(() => {
     if (!user || !token) return;
 
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`${API_URL}/profil`, {
-          headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
-        });
-        const data = res.ok ? (await res.json()) : null;
+        const data    = await profilAPI.show();              // GET /profil
         const profile = data?.user ?? data ?? user;
 
         setForm({
@@ -62,8 +58,9 @@ export default function EditProfile() {
           photo_profil:     profile.photo_profil     ?? '',
         });
         setPhotoPreview(profile.photo_profil ?? profile.photo ?? null);
+
       } catch {
-        // fallback sur le contexte
+        // Fallback sur le contexte si l'API échoue
         setForm({
           prenom:           user.prenom           ?? '',
           nom:              user.nom              ?? '',
@@ -83,6 +80,7 @@ export default function EditProfile() {
     fetchProfile();
   }, [user, token]);
 
+  // ── Validation ─────────────────────────────────────────────
   const validate = () => {
     const e = {};
     if (!form.prenom.trim()) e.prenom = 'Le prénom est requis';
@@ -92,7 +90,7 @@ export default function EditProfile() {
     return e;
   };
 
-  // POST /profil (méthode POST avec _method=PUT ou directement POST selon le back)
+  // ── POST /profil ───────────────────────────────────────────
   const handleSubmit = async () => {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
@@ -101,50 +99,53 @@ export default function EditProfile() {
     setApiError(null);
 
     try {
-      const payload = {
-        prenom:    form.prenom.trim(),
-        nom:       form.nom.trim(),
-        telephone: form.telephone.trim() || null,
-        bio:       form.bio.trim()       || null,
-        photo_profil: photoPreview?.startsWith('data:') ? photoPreview : (form.photo_profil || null),
-      };
-      if (isArtisan) {
-        payload.specialite       = form.specialite       || null;
-        payload.experience_level = form.experience_level || null;
-      }
+      let data;
 
-      // Route : POST /profil (avec _method spoofing si nécessaire)
-      const res = await fetch(`${API_URL}/profil`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept:         'application/json',
-          Authorization:  `Bearer ${token}`,
-        },
-        body: JSON.stringify({ ...payload, _method: 'PUT' }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.errors) {
-          const mapped = {};
-          Object.keys(data.errors).forEach(k => { mapped[k] = data.errors[k][0]; });
-          setErrors(mapped);
-        } else {
-          setApiError(data.message ?? 'Une erreur est survenue');
+      if (photoFile) {
+        // Photo sélectionnée → FormData (multipart)
+        const fd = new FormData();
+        fd.append('prenom',    form.prenom.trim());
+        fd.append('nom',       form.nom.trim());
+        fd.append('telephone', form.telephone.trim() || '');
+        fd.append('bio',       form.bio.trim()       || '');
+        fd.append('photo_profil', photoFile);
+        if (isArtisan) {
+          fd.append('specialite',       form.specialite       || '');
+          fd.append('experience_level', form.experience_level || '');
         }
-        return;
+        data = await profilAPI.update(fd, true);  // POST /profil (FormData)
+
+      } else {
+        // Pas de photo → JSON classique
+        const payload = {
+          prenom:    form.prenom.trim(),
+          nom:       form.nom.trim(),
+          telephone: form.telephone.trim() || null,
+          bio:       form.bio.trim()       || null,
+          ...(isArtisan && {
+            specialite:       form.specialite       || null,
+            experience_level: form.experience_level || null,
+          }),
+        };
+        data = await profilAPI.update(payload);   // POST /profil (JSON)
       }
 
-      // Mettre à jour le contexte
-      if (data.user) login(data.user, token);
+      // Mettre à jour le contexte Auth avec les nouvelles données
+      if (data?.user) login(data.user, token);
 
       setSuccess(true);
       setTimeout(() => navigate('/profile'), 1800);
 
-    } catch {
-      setApiError('Impossible de contacter le serveur.');
+    } catch (err) {
+      if (err.errors) {
+        const mapped = {};
+        Object.entries(err.errors).forEach(([k, msgs]) => {
+          mapped[k] = Array.isArray(msgs) ? msgs[0] : msgs;
+        });
+        setErrors(mapped);
+      } else {
+        setApiError(err.message || 'Impossible de contacter le serveur.');
+      }
     } finally {
       setLoading(false);
     }
@@ -158,6 +159,7 @@ export default function EditProfile() {
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setPhotoFile(file);
     const reader = new FileReader();
     reader.onloadend = () => setPhotoPreview(reader.result);
     reader.readAsDataURL(file);
@@ -166,6 +168,7 @@ export default function EditProfile() {
   const fullName = user ? `${user.prenom ?? ''} ${user.nom ?? ''}`.trim() || user.email : '';
   const initiale = fullName.charAt(0).toUpperCase();
 
+  // ── États UI ───────────────────────────────────────────────
   if (fetching) return (
     <div className="flex items-center justify-center min-h-screen">
       <Loader className="w-10 h-10 animate-spin" style={{ color: '#4a6fa5' }} />
@@ -232,6 +235,11 @@ export default function EditProfile() {
                   <Camera className="w-4 h-4" /> Changer la photo
                 </label>
                 <p className="mt-2 text-xs text-gray-400">JPG, PNG (max 5MB)</p>
+                {photoFile && (
+                  <p className="mt-1 text-xs font-semibold" style={{ color: '#22c55e' }}>
+                    ✓ {photoFile.name}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -242,7 +250,10 @@ export default function EditProfile() {
             <div className="space-y-4">
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {[{ key: 'prenom', label: 'Prénom', ph: 'Jean' }, { key: 'nom', label: 'Nom', ph: 'Dupont' }].map(({ key, label, ph }) => (
+                {[
+                  { key: 'prenom', label: 'Prénom', ph: 'Jean'   },
+                  { key: 'nom',    label: 'Nom',    ph: 'Dupont' },
+                ].map(({ key, label, ph }) => (
                   <div key={key}>
                     <label className="block mb-2 text-sm font-bold" style={{ color: '#2b2d42' }}>
                       {label} <span style={{ color: '#ff7e5f' }}>*</span>
@@ -346,6 +357,7 @@ export default function EditProfile() {
               )}
             </button>
           </div>
+
         </div>
       </div>
     </div>

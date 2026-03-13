@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Star, CheckCircle, Loader } from 'lucide-react';
-import Card from '../../components/Common/Card';
+import Card   from '../../components/Common/Card';
 import Button from '../../components/Common/Button';
-import { useAuth } from '../../components/Auth/AuthContext';
+import { avisAPI, atelierAPI } from '../../../../services/api';
 
 export default function WriteReview() {
-  const { artisanId } = useParams();
+  const { artisanId } = useParams(); // = atelier_id
   const navigate      = useNavigate();
-  const { accesToken } = useAuth();
 
   const [loading,     setLoading]     = useState(false);
   const [success,     setSuccess]     = useState(false);
@@ -20,28 +19,24 @@ export default function WriteReview() {
   const [hoverRating, setHoverRating] = useState(0);
   const [comment,     setComment]     = useState('');
 
-  // Charger les infos de l'artisan
+  // ── GET /ateliers/:id ──────────────────────────────────────
   useEffect(() => {
+    if (!artisanId) return;
     const fetchArtisan = async () => {
       setArtisanLoad(true);
       try {
-        const res = await fetch(`/api/artisans/${artisanId}`, {
-          headers: { Accept: 'application/json' },
-          credentials: 'include',
-        });
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        setArtisan(data.artisan ?? data);
+        const data = await atelierAPI.show(artisanId);
+        setArtisan(data.atelier ?? data);
       } catch {
-        // Artisan introuvable — on continue quand même
         setArtisan(null);
       } finally {
         setArtisanLoad(false);
       }
     };
-    if (artisanId) fetchArtisan();
+    fetchArtisan();
   }, [artisanId]);
 
+  // ── POST /avis ─────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -53,67 +48,52 @@ export default function WriteReview() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/avis', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          artisan_id:  artisanId,
-          note:        rating,
-          commentaire: comment.trim(),
-        }),
+      await avisAPI.store({
+        artisan_id:  artisanId,
+        note:        rating,
+        commentaire: comment.trim(),
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.errors) {
-          const mapped = {};
-          Object.keys(data.errors).forEach(k => { mapped[k] = data.errors[k][0]; });
-          setErrors(mapped);
-        } else {
-          setErrors({ submit: data.message ?? 'Une erreur est survenue' });
-        }
-        return;
-      }
 
       setSuccess(true);
       setTimeout(() => navigate('/my-reviews'), 2000);
 
-    } catch {
-      setErrors({ submit: 'Impossible de contacter le serveur. Vérifiez votre connexion.' });
+    } catch (err) {
+      if (err.errors) {
+        const mapped = {};
+        Object.entries(err.errors).forEach(([k, v]) => {
+          mapped[k] = Array.isArray(v) ? v[0] : v;
+        });
+        setErrors(mapped);
+      } else {
+        setErrors({ submit: err.message || 'Une erreur est survenue.' });
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const artisanName    = artisan
-    ? (artisan.name ?? `${artisan.prenom ?? ''} ${artisan.nom ?? ''}`.trim())
+  const artisanName     = artisan
+    ? (artisan.nom ?? artisan.name ?? '—')
     : '—';
-  const artisanPhoto   = artisan?.photo ?? artisan?.image ?? null;
-  const artisanSpecialty = artisan?.specialty ?? artisan?.specialite ?? '';
+  const artisanPhoto    = artisan?.image_url ?? artisan?.image_principale ?? null;
+  const artisanSpecialty = artisan?.domaine ?? artisan?.specialite ?? '';
 
-  if (success) {
-    return (
-      <div className="flex items-center justify-center min-h-screen pt-24 pb-20"
-        style={{ backgroundColor: 'var(--light)' }}>
-        <Card className="w-full max-w-md p-12 text-center">
-          <div className="flex items-center justify-center w-20 h-20 mx-auto mb-6 rounded-full"
-            style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)' }}>
-            <CheckCircle className="w-12 h-12" style={{ color: '#22c55e' }} />
-          </div>
-          <h2 className="mb-4 text-3xl font-black" style={{ color: 'var(--dark)' }}>Avis publié !</h2>
-          <p className="mb-6 text-sm" style={{ color: 'var(--dark)', opacity: 0.7 }}>
-            Merci pour votre retour. Il aide la communauté à faire les meilleurs choix.
-          </p>
-        </Card>
-      </div>
-    );
-  }
+  // ── Succès ─────────────────────────────────────────────────
+  if (success) return (
+    <div className="flex items-center justify-center min-h-screen pt-24 pb-20"
+      style={{ backgroundColor: 'var(--light)' }}>
+      <Card className="w-full max-w-md p-12 text-center">
+        <div className="flex items-center justify-center w-20 h-20 mx-auto mb-6 rounded-full"
+          style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)' }}>
+          <CheckCircle className="w-12 h-12" style={{ color: '#22c55e' }} />
+        </div>
+        <h2 className="mb-4 text-3xl font-black" style={{ color: 'var(--dark)' }}>Avis publié !</h2>
+        <p className="mb-6 text-sm" style={{ color: 'var(--dark)', opacity: 0.7 }}>
+          Merci pour votre retour. Il aide la communauté à faire les meilleurs choix.
+        </p>
+      </Card>
+    </div>
+  );
 
   return (
     <div className="min-h-screen pt-24 pb-20" style={{ backgroundColor: 'var(--light)' }}>
@@ -143,7 +123,7 @@ export default function WriteReview() {
         </div>
 
         <Card className="p-8">
-          {/* Info artisan */}
+          {/* Info atelier */}
           <div className="flex items-center gap-4 p-6 mb-8 rounded-xl" style={{ backgroundColor: 'var(--gray)' }}>
             {artisanLoad ? (
               <div className="flex items-center gap-3">
@@ -181,6 +161,7 @@ export default function WriteReview() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-8">
+
             {/* Notation */}
             <div>
               <label className="block mb-4 text-lg font-bold text-center" style={{ color: 'var(--dark)' }}>
@@ -227,8 +208,8 @@ export default function WriteReview() {
                 className="w-full px-4 py-3 transition-all border-2 resize-none rounded-xl"
                 style={{
                   backgroundColor: errors.comment ? 'rgba(239, 68, 68, 0.05)' : 'var(--gray)',
-                  borderColor: errors.comment ? '#ef4444' : 'var(--gray-dark)',
-                  color: 'var(--dark)',
+                  borderColor:     errors.comment ? '#ef4444' : 'var(--gray-dark)',
+                  color:           'var(--dark)',
                 }} />
               <div className="flex items-center justify-between mt-2">
                 {errors.comment && (

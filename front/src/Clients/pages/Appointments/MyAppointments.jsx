@@ -1,56 +1,46 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Calendar, Clock, MapPin, Phone, CheckCircle, XCircle, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../components/Auth/AuthContext';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { rendezVousAPI } from '../../../../services/api';
 
 const STATUS_STYLES = {
-  EN_ATTENTE: { bg: 'rgba(251,146,60,0.1)',  color: '#fb923c', icon: Clock,         label: 'En attente' },
-  ACCEPTE:    { bg: 'rgba(74,111,165,0.1)',  color: '#4a6fa5', icon: CheckCircle,   label: 'Confirmé'   },
-  REFUSE:     { bg: 'rgba(239,68,68,0.1)',   color: '#ef4444', icon: XCircle,       label: 'Refusé'     },
-  ANNULE:     { bg: 'rgba(107,114,128,0.1)', color: '#6b7280', icon: XCircle,       label: 'Annulé'     },
+  EN_ATTENTE: { bg: 'rgba(251,146,60,0.1)',  color: '#fb923c', icon: Clock,       label: 'En attente' },
+  ACCEPTE:    { bg: 'rgba(74,111,165,0.1)',  color: '#4a6fa5', icon: CheckCircle, label: 'Confirmé'   },
+  REFUSE:     { bg: 'rgba(239,68,68,0.1)',   color: '#ef4444', icon: XCircle,     label: 'Refusé'     },
+  ANNULE:     { bg: 'rgba(107,114,128,0.1)', color: '#6b7280', icon: XCircle,     label: 'Annulé'     },
 };
 
 export default function MyAppointments() {
-  const { token } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
 
-  // GET /rendez-vous
+  // ── GET /rendez-vous ───────────────────────────────────────
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/rendez-vous`, {
-        headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`Erreur ${res.status}`);
-      const data = await res.json();
-      setAppointments(data.data ?? data);
+      const data = await rendezVousAPI.index(); // GET /rendez-vous
+      const list = data.rendez_vous ?? data.data ?? data ?? [];
+      setAppointments(Array.isArray(list) ? list : []);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Erreur lors du chargement des rendez-vous.');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
 
-  // PATCH /rendez-vous/{id}/annuler
+  // ── PATCH /rendez-vous/{id}/annuler ───────────────────────
   const handleCancel = async (id) => {
     if (!window.confirm('Êtes-vous sûr de vouloir annuler ce rendez-vous ?')) return;
     try {
-      const res = await fetch(`${API_URL}/rendez-vous/${id}/annuler`, {
-        method: 'PATCH',
-        headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Impossible d\'annuler');
+      await rendezVousAPI.annuler(id);
       fetchAppointments();
     } catch (err) {
-      alert(err.message);
+      alert(err.message || 'Impossible d\'annuler ce rendez-vous.');
     }
   };
 
@@ -67,19 +57,23 @@ export default function MyAppointments() {
 
   const filtered = filterStatus === 'all'
     ? appointments
-    : appointments.filter(a => a.statut === filterStatus || a.status === filterStatus);
+    : appointments.filter(a => (a.statut ?? a.status) === filterStatus);
 
-  const now = new Date();
+  const now      = new Date();
   const upcoming = filtered.filter(a => new Date(a.date_heure ?? a.date) >= now);
   const past     = filtered.filter(a => new Date(a.date_heure ?? a.date) < now);
 
   const formatDate = (rdv) => {
     const d = rdv.date_heure ? new Date(rdv.date_heure) : null;
-    return d ? d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : rdv.date ?? '—';
+    return d
+      ? d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+      : rdv.date ?? '—';
   };
   const formatTime = (rdv) => {
     const d = rdv.date_heure ? new Date(rdv.date_heure) : null;
-    return d ? d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : rdv.heure ?? '—';
+    return d
+      ? d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      : rdv.heure ?? '—';
   };
 
   return (
@@ -119,7 +113,7 @@ export default function MyAppointments() {
                 className="px-4 py-2 text-sm font-bold transition-all rounded-lg"
                 style={{
                   backgroundColor: filterStatus === f.value ? '#4a6fa5' : 'white',
-                  color: filterStatus === f.value ? 'white' : '#2b2d42',
+                  color:           filterStatus === f.value ? 'white'   : '#2b2d42',
                   border: `2px solid ${filterStatus === f.value ? '#4a6fa5' : '#e9ecef'}`
                 }}>
                 {f.label} ({f.count})
@@ -132,12 +126,13 @@ export default function MyAppointments() {
         {error && (
           <div className="p-4 mb-6 text-sm font-semibold text-red-700 border-2 border-red-200 bg-red-50 rounded-xl">
             ⚠️ {error}
+            <button onClick={fetchAppointments} className="ml-4 underline">Réessayer</button>
           </div>
         )}
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-12 h-12 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+            <div className="w-12 h-12 border-4 border-blue-500 rounded-full border-t-transparent animate-spin" />
           </div>
         ) : (
           <div className="space-y-8">
@@ -151,16 +146,16 @@ export default function MyAppointments() {
                 </h2>
                 <div className="space-y-4">
                   {upcoming.map(rdv => {
-                    const statut = rdv.statut ?? rdv.status ?? 'EN_ATTENTE';
-                    const artisan = rdv.artisan ?? {};
+                    const statut      = rdv.statut ?? rdv.status ?? 'EN_ATTENTE';
+                    const artisan     = rdv.artisan ?? {};
                     const artisanName = artisan.prenom && artisan.nom
                       ? `${artisan.prenom} ${artisan.nom}`
                       : artisan.name ?? 'Artisan';
 
                     return (
-                      <div key={rdv.id} className="p-6 bg-white shadow-md rounded-xl" style={{ border: '1px solid #e9ecef' }}>
+                      <div key={rdv.id} className="p-6 bg-white shadow-md rounded-xl"
+                        style={{ border: '1px solid #e9ecef' }}>
                         <div className="flex flex-col gap-6 md:flex-row">
-                          {/* Avatar artisan */}
                           <div className="flex items-center justify-center flex-shrink-0 w-20 h-20 text-2xl font-black text-white rounded-xl"
                             style={{ background: 'linear-gradient(135deg, #4a6fa5, #3a5784)' }}>
                             {artisanName.charAt(0)}
@@ -240,17 +235,19 @@ export default function MyAppointments() {
             {/* Passés */}
             {past.length > 0 && (
               <div>
-                <h2 className="flex items-center gap-2 mb-4 text-2xl font-bold" style={{ color: '#2b2d42', opacity: 0.7 }}>
+                <h2 className="flex items-center gap-2 mb-4 text-2xl font-bold"
+                  style={{ color: '#2b2d42', opacity: 0.7 }}>
                   <Clock className="w-6 h-6" /> Passés ({past.length})
                 </h2>
                 <div className="space-y-4 opacity-75">
                   {past.map(rdv => {
-                    const artisan = rdv.artisan ?? {};
+                    const artisan     = rdv.artisan ?? {};
                     const artisanName = artisan.prenom && artisan.nom
                       ? `${artisan.prenom} ${artisan.nom}`
                       : artisan.name ?? 'Artisan';
                     return (
-                      <div key={rdv.id} className="p-6 bg-white shadow-md rounded-xl" style={{ border: '1px solid #e9ecef' }}>
+                      <div key={rdv.id} className="p-6 bg-white shadow-md rounded-xl"
+                        style={{ border: '1px solid #e9ecef' }}>
                         <div className="flex items-center gap-6">
                           <div className="flex items-center justify-center flex-shrink-0 text-xl font-black text-white w-14 h-14 rounded-xl"
                             style={{ background: 'linear-gradient(135deg, #4a6fa5, #3a5784)' }}>

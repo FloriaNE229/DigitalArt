@@ -1,22 +1,21 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Zap, MapPin, Phone, Clock, AlertCircle, CheckCircle, Loader } from 'lucide-react';
-import Card from '../../components/Common/Card';
+import Card   from '../../components/Common/Card';
 import Button from '../../components/Common/Button';
-import Input from '../../components/Common/Input';
-import { useAuth } from '../../components/Auth/AuthContext';
+import Input  from '../../components/Common/Input';
+import { serviceImmediatAPI } from '../../../../services/api';
 
 const CATEGORIES = [
-  { value: 'plomberie',   label: 'Plomberie',    icon: '🔧' },
-  { value: 'electricite', label: 'Électricité',  icon: '⚡' },
-  { value: 'menuiserie',  label: 'Menuiserie',   icon: '🔨' },
-  { value: 'mecanique',   label: 'Mécanique',    icon: '🔩' },
-  { value: 'autre',       label: 'Autre',        icon: '🛠️' },
+  { value: 'plomberie',   label: 'Plomberie',   icon: '🔧' },
+  { value: 'electricite', label: 'Électricité', icon: '⚡' },
+  { value: 'menuiserie',  label: 'Menuiserie',  icon: '🔨' },
+  { value: 'mecanique',   label: 'Mécanique',   icon: '🔩' },
+  { value: 'autre',       label: 'Autre',       icon: '🛠️' },
 ];
 
 export default function ServiceImmediate() {
   const navigate = useNavigate();
-  const { accesToken } = useAuth();
 
   const [loading,       setLoading]       = useState(false);
   const [searching,     setSearching]     = useState(false);
@@ -44,6 +43,7 @@ export default function ServiceImmediate() {
     return e;
   };
 
+  // ── POST /services-immediats ───────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = validate();
@@ -53,43 +53,29 @@ export default function ServiceImmediate() {
     setSearching(true);
 
     try {
-      const res = await fetch('/api/services/immediate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
+      const data = await serviceImmediatAPI.store(formData); // POST /services-immediats
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setSearching(false);
-        if (data.errors) {
-          const mapped = {};
-          Object.keys(data.errors).forEach(k => { mapped[k] = data.errors[k][0]; });
-          setErrors(mapped);
-        } else {
-          setErrors({ submit: data.message ?? 'Une erreur est survenue' });
-        }
-        return;
-      }
-
-      // Compatible formats: { artisans: [...] } | { data: [...] } | [...]
       const list = data.artisans ?? data.data ?? data ?? [];
       setArtisansFound(Array.isArray(list) ? list : []);
 
-    } catch {
+    } catch (err) {
       setSearching(false);
-      setErrors({ submit: 'Impossible de contacter le serveur. Vérifiez votre connexion.' });
+      if (err.errors) {
+        const mapped = {};
+        Object.entries(err.errors).forEach(([k, msgs]) => {
+          mapped[k] = Array.isArray(msgs) ? msgs[0] : msgs;
+        });
+        setErrors(mapped);
+      } else {
+        setErrors({ submit: err.message || 'Une erreur est survenue.' });
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // ── GET /services-immediats/disponibles ───────────────────
+  // (optionnel : charger les artisans dispo avant soumission)
   const handleContactArtisan = (artisanId) => {
     navigate(`/artisan/${artisanId}`);
   };
@@ -145,6 +131,7 @@ export default function ServiceImmediate() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+
               {/* Catégorie */}
               <div>
                 <label className="block mb-3 text-sm font-bold" style={{ color: 'var(--dark)' }}>
@@ -157,7 +144,7 @@ export default function ServiceImmediate() {
                       className="p-4 text-sm font-bold transition-all rounded-xl"
                       style={{
                         backgroundColor: formData.category === cat.value ? 'var(--primary)' : 'white',
-                        color: formData.category === cat.value ? 'white' : 'var(--dark)',
+                        color:           formData.category === cat.value ? 'white' : 'var(--dark)',
                         border: `2px solid ${formData.category === cat.value ? 'var(--primary)' : 'var(--gray-dark)'}`,
                       }}>
                       <div className="mb-2 text-2xl">{cat.icon}</div>
@@ -180,8 +167,8 @@ export default function ServiceImmediate() {
                   className="w-full px-4 py-3 transition-all border-2 resize-none rounded-xl"
                   style={{
                     backgroundColor: errors.description ? 'rgba(239, 68, 68, 0.05)' : 'var(--gray)',
-                    borderColor: errors.description ? '#ef4444' : 'var(--gray-dark)',
-                    color: 'var(--dark)',
+                    borderColor:     errors.description ? '#ef4444' : 'var(--gray-dark)',
+                    color:           'var(--dark)',
                   }} />
                 {errors.description && (
                   <p className="mt-2 text-sm font-semibold" style={{ color: '#ef4444' }}>{errors.description}</p>
@@ -217,6 +204,7 @@ export default function ServiceImmediate() {
               </div>
             </form>
           </Card>
+
         ) : (
           /* ── Résultats ── */
           <div className="space-y-6">
@@ -233,6 +221,7 @@ export default function ServiceImmediate() {
                   Nous notifions les artisans disponibles dans votre zone
                 </p>
               </Card>
+
             ) : artisansFound.length > 0 ? (
               <>
                 <Card className="p-6">
@@ -250,7 +239,7 @@ export default function ServiceImmediate() {
                 <div className="space-y-4">
                   {artisansFound.map(artisan => {
                     const name    = artisan.name ?? `${artisan.prenom ?? ''} ${artisan.nom ?? ''}`.trim();
-                    const photo   = artisan.photo ?? artisan.image ?? null;
+                    const photo   = artisan.photo_profil ?? artisan.photo ?? artisan.image ?? null;
                     const initial = name.charAt(0).toUpperCase();
                     return (
                       <Card key={artisan.id} hover className="p-6">
@@ -271,7 +260,7 @@ export default function ServiceImmediate() {
                               <div>
                                 <h4 className="mb-1 text-lg font-bold" style={{ color: 'var(--dark)' }}>{name}</h4>
                                 <p className="mb-2 text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-                                  {artisan.specialty ?? artisan.specialite}
+                                  {artisan.specialite ?? artisan.specialty}
                                 </p>
                               </div>
                               <div className="flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-full"
@@ -287,9 +276,8 @@ export default function ServiceImmediate() {
                                 </div>
                               )}
                               {artisan.rating != null && (
-                                <div>⭐ {artisan.rating} ({artisan.reviews ?? 0} avis)</div>
+                                <div>⭐ {Number(artisan.rating).toFixed(1)} ({artisan.reviews_count ?? artisan.reviews ?? 0} avis)</div>
                               )}
-                              {artisan.responseTime && <div>{artisan.responseTime}</div>}
                             </div>
                             <Button onClick={() => handleContactArtisan(artisan.id)}
                               variant="primary" className="!px-6 !py-2 !text-sm">
@@ -307,6 +295,7 @@ export default function ServiceImmediate() {
                   </Button>
                 </div>
               </>
+
             ) : (
               <Card className="p-12 text-center">
                 <div className="flex items-center justify-center w-20 h-20 mx-auto mb-6 rounded-full"

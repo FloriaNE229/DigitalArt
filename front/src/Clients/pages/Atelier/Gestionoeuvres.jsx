@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../../components/Auth/AuthContext';
 import { Image, Plus, Trash2, Eye, EyeOff, Upload, X } from 'lucide-react';
+import { oeuvreAPI } from '../../../../services/api';
 
 export default function GestionOeuvres() {
-  const { accesToken } = useAuth();
-
   const [oeuvres,  setOeuvres]  = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
@@ -18,15 +16,17 @@ export default function GestionOeuvres() {
   const [preview, setPreview] = useState(null);
   const fileRef = useRef();
 
-  // ── Chargement
+  const notify = (msg, type = 'success') => {
+    if (type === 'success') setSuccess(msg); else setError(msg);
+    setTimeout(() => { setSuccess(''); setError(''); }, 3000);
+  };
+
+  // ── GET /mes-oeuvres ───────────────────────────────────────
   useEffect(() => {
     const fetchOeuvres = async () => {
       try {
-        const res  = await fetch('/api/mes-oeuvres', {
-          headers: { Authorization: `Bearer ${accesToken}`, Accept: 'application/json' },
-        });
-        const data = await res.json();
-        setOeuvres(data.oeuvres ?? []);
+        const data = await oeuvreAPI.mesOeuvres();
+        setOeuvres(data.oeuvres ?? data.data ?? []);
       } catch {
         setError('Erreur lors du chargement.');
       } finally {
@@ -34,14 +34,9 @@ export default function GestionOeuvres() {
       }
     };
     fetchOeuvres();
-  }, [accesToken]);
+  }, []);
 
-  const notify = (msg, type = 'success') => {
-    if (type === 'success') setSuccess(msg); else setError(msg);
-    setTimeout(() => { setSuccess(''); setError(''); }, 3000);
-  };
-
-  // ── Sélection image
+  // ── Sélection image ────────────────────────────────────────
   const handleFile = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -49,7 +44,7 @@ export default function GestionOeuvres() {
     setPreview(URL.createObjectURL(file));
   };
 
-  // ── Ajouter oeuvre
+  // ── POST /mes-oeuvres (FormData) ───────────────────────────
   const handleSubmit = async () => {
     if (!form.titre || !form.image) {
       setError('Le titre et une image sont requis.');
@@ -64,48 +59,35 @@ export default function GestionOeuvres() {
       fd.append('visible',        form.visible ? '1' : '0');
       fd.append('image',          form.image);
 
-      const res  = await fetch('/api/mes-oeuvres', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accesToken}`, Accept: 'application/json' },
-        body: fd,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? 'Erreur');
+      const data = await oeuvreAPI.store(fd); // POST /mes-oeuvres
 
-      setOeuvres(prev => [data.oeuvre, ...prev]);
+      setOeuvres(prev => [data.oeuvre ?? data, ...prev]);
       setForm({ titre: '', description: '', prix_indicatif: '', visible: true, image: null });
       setPreview(null);
       setShowForm(false);
       notify('Œuvre ajoutée avec succès !');
     } catch (e) {
-      setError(e.message);
+      setError(e.message || 'Erreur lors de l\'ajout.');
     } finally {
       setSaving(false);
     }
   };
 
-  // ── Toggle visibilité
+  // ── PATCH /mes-oeuvres/:id/visibilite ──────────────────────
   const handleToggle = async (id) => {
     try {
-      const res  = await fetch(`/api/mes-oeuvres/${id}/visibilite`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${accesToken}`, Accept: 'application/json' },
-      });
-      const data = await res.json();
-      setOeuvres(prev => prev.map(o => o.id === id ? data.oeuvre : o));
+      const data = await oeuvreAPI.toggleVisibilite(id);
+      setOeuvres(prev => prev.map(o => o.id === id ? (data.oeuvre ?? data) : o));
     } catch {
       setError('Erreur lors du changement de visibilité.');
     }
   };
 
-  // ── Supprimer
+  // ── DELETE /mes-oeuvres/:id ────────────────────────────────
   const handleDelete = async (id) => {
     if (!confirm('Supprimer cette œuvre ?')) return;
     try {
-      await fetch(`/api/mes-oeuvres/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${accesToken}` },
-      });
+      await oeuvreAPI.destroy(id);
       setOeuvres(prev => prev.filter(o => o.id !== id));
       notify('Œuvre supprimée.');
     } catch {
@@ -142,7 +124,6 @@ export default function GestionOeuvres() {
         <div className="p-6 mb-8 bg-white shadow-sm rounded-2xl" style={{ border: '1px solid var(--gray-dark)' }}>
           <h2 className="mb-4 text-lg font-bold" style={{ color: 'var(--dark)' }}>Nouvelle œuvre</h2>
 
-          {/* Upload image */}
           <div className="mb-4">
             <div onClick={() => fileRef.current.click()}
               className="flex flex-col items-center justify-center w-full h-40 transition-colors border-2 border-dashed cursor-pointer rounded-xl hover:bg-gray-50"
@@ -160,29 +141,32 @@ export default function GestionOeuvres() {
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="col-span-2">
               <label className="block mb-1 text-xs font-semibold text-gray-500">Titre *</label>
-              <input type="text" value={form.titre} onChange={e => setForm(p => ({ ...p, titre: e.target.value }))}
+              <input type="text" value={form.titre}
+                onChange={e => setForm(p => ({ ...p, titre: e.target.value }))}
                 placeholder="Ex: Rénovation salle de bain"
                 className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 style={{ borderColor: 'var(--gray-dark)' }} />
             </div>
             <div className="col-span-2">
               <label className="block mb-1 text-xs font-semibold text-gray-500">Description</label>
-              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                placeholder="Décrivez ce travail..."
-                rows={3}
+              <textarea value={form.description}
+                onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                placeholder="Décrivez ce travail..." rows={3}
                 className="w-full px-3 py-2 text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
                 style={{ borderColor: 'var(--gray-dark)' }} />
             </div>
             <div>
               <label className="block mb-1 text-xs font-semibold text-gray-500">Prix indicatif (FCFA)</label>
-              <input type="number" value={form.prix_indicatif} onChange={e => setForm(p => ({ ...p, prix_indicatif: e.target.value }))}
+              <input type="number" value={form.prix_indicatif}
+                onChange={e => setForm(p => ({ ...p, prix_indicatif: e.target.value }))}
                 placeholder="Ex: 50000"
                 className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 style={{ borderColor: 'var(--gray-dark)' }} />
             </div>
             <div className="flex items-end">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.visible} onChange={e => setForm(p => ({ ...p, visible: e.target.checked }))}
+                <input type="checkbox" checked={form.visible}
+                  onChange={e => setForm(p => ({ ...p, visible: e.target.checked }))}
                   className="w-4 h-4 rounded" />
                 <span className="text-sm font-semibold" style={{ color: 'var(--dark)' }}>Visible publiquement</span>
               </label>
@@ -209,7 +193,6 @@ export default function GestionOeuvres() {
           {oeuvres.map(oeuvre => (
             <div key={oeuvre.id} className="overflow-hidden bg-white shadow-sm rounded-xl"
               style={{ border: '1px solid var(--gray-dark)' }}>
-              {/* Image */}
               <div className="relative h-48 overflow-hidden bg-gray-100">
                 {oeuvre.image_url
                   ? <img src={oeuvre.image_url} alt={oeuvre.titre} className="object-cover w-full h-full" />
@@ -223,7 +206,6 @@ export default function GestionOeuvres() {
                 )}
               </div>
 
-              {/* Infos */}
               <div className="p-3">
                 <h3 className="mb-1 text-sm font-bold truncate" style={{ color: 'var(--dark)' }}>{oeuvre.titre}</h3>
                 {oeuvre.prix_indicatif && (

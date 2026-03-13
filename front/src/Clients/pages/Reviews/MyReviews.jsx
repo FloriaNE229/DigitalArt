@@ -1,81 +1,64 @@
 import { useState, useEffect } from 'react';
 import { Star, Eye, Trash2, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import Card from '../../components/Common/Card';
+import Card   from '../../components/Common/Card';
 import Button from '../../components/Common/Button';
-import { useAuth } from '../../components/Auth/AuthContext';
+import { avisAPI } from '../../../../services/api';
 
 export default function MyReviews() {
-  const { accesToken } = useAuth();
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
+  const [error,   setError]   = useState(null);
 
+  // ── GET /avis/mes-avis ─────────────────────────────────────
   const fetchReviews = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/avis', {
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        },
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error(`Erreur serveur ${res.status}`);
-      const data = await res.json();
+      const data = await avisAPI.mesAvis();
       setReviews(data.avis ?? data.reviews ?? data.data ?? data ?? []);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Erreur lors du chargement des avis.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (accesToken) fetchReviews();
-  }, [accesToken]);
+  useEffect(() => { fetchReviews(); }, []);
 
+  // ── DELETE /avis/:id ───────────────────────────────────────
   const handleDeleteReview = async (reviewId) => {
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet avis ?')) return;
     try {
-      const res = await fetch(`/api/avis/${reviewId}`, {
-        method: 'DELETE',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        },
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Erreur lors de la suppression');
+      await avisAPI.destroy(reviewId);
       setReviews(prev => prev.filter(r => r.id !== reviewId));
     } catch (err) {
-      alert(err.message);
+      alert(err.message || 'Erreur lors de la suppression.');
     }
   };
 
   const averageRating = reviews.length > 0
-    ? (reviews.reduce((sum, r) => sum + (r.rating ?? r.note ?? 0), 0) / reviews.length).toFixed(1)
+    ? (reviews.reduce((sum, r) => sum + (r.note ?? r.rating ?? 0), 0) / reviews.length).toFixed(1)
     : 0;
 
-  // Helpers pour compatibilité multi-formats Laravel
-  const getArtisan = (review) => review.artisan ?? {};
-  const getArtisanName = (review) => {
-    const a = getArtisan(review);
-    return (a.name ?? `${a.prenom ?? ''} ${a.nom ?? ''}`.trim()) || '—';
+  // ── Helpers multi-formats ──────────────────────────────────
+  const getAtelier      = (r) => r.atelier ?? r.artisan ?? {};
+  const getArtisanName  = (r) => {
+    const a = getAtelier(r);
+    return (a.nom ?? a.name ?? `${a.prenom ?? ''} ${a.nom ?? ''}`.trim()) || '—';
   };
-  const getArtisanPhoto = (review) => {
-    const a = getArtisan(review);
-    return a.image ?? a.photo ?? null;
+  const getArtisanPhoto = (r) => {
+    const a = getAtelier(r);
+    return a.image_url ?? a.image_principale ?? a.image ?? a.photo ?? null;
   };
-  const getArtisanSpecialty = (review) => {
-    const a = getArtisan(review);
-    return a.specialty ?? a.specialite ?? '';
+  const getSpecialty    = (r) => {
+    const a = getAtelier(r);
+    return a.domaine ?? a.specialite ?? a.specialty ?? '';
   };
-  const getRating = (review) => review.rating ?? review.note ?? 0;
-  const getComment = (review) => review.comment ?? review.commentaire ?? '';
-  const getDate = (review) => {
-    const raw = review.date ?? review.created_at;
+  const getRating  = (r) => r.note ?? r.rating ?? 0;
+  const getComment = (r) => r.commentaire ?? r.comment ?? '';
+  const getDate    = (r) => {
+    const raw = r.created_at ?? r.date;
     if (!raw) return '—';
     return new Date(raw).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
   };
@@ -91,7 +74,6 @@ export default function MyReviews() {
             <Star className="w-4 h-4" />
             {reviews.length} avis laissé{reviews.length > 1 ? 's' : ''}
           </div>
-
           <h1 className="mb-4 text-4xl font-black md:text-5xl" style={{ color: 'var(--dark)' }}>
             Mes
             <span className="text-transparent bg-clip-text"
@@ -147,15 +129,14 @@ export default function MyReviews() {
             {/* Liste */}
             <div className="space-y-4">
               {reviews.map(review => {
-                const photo    = getArtisanPhoto(review);
-                const name     = getArtisanName(review);
-                const rating   = getRating(review);
-                const artisan  = getArtisan(review);
+                const photo   = getArtisanPhoto(review);
+                const name    = getArtisanName(review);
+                const rating  = getRating(review);
+                const atelier = getAtelier(review);
 
                 return (
                   <Card key={review.id} className="p-6">
                     <div className="flex flex-col gap-6 md:flex-row">
-                      {/* Photo artisan */}
                       <div className="flex-shrink-0 w-full h-24 overflow-hidden md:w-24 rounded-xl"
                         style={{ backgroundColor: 'var(--gray)' }}>
                         {photo ? (
@@ -173,7 +154,7 @@ export default function MyReviews() {
                           <div>
                             <h3 className="mb-1 text-lg font-bold" style={{ color: 'var(--dark)' }}>{name}</h3>
                             <p className="mb-2 text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-                              {getArtisanSpecialty(review)}
+                              {getSpecialty(review)}
                             </p>
                           </div>
                           <div className="flex items-center gap-1">
@@ -193,7 +174,7 @@ export default function MyReviews() {
                             Publié le {getDate(review)}
                           </div>
                           <div className="flex gap-2">
-                            <Link to={`/artisan/${artisan.id}`}>
+                            <Link to={`/artisan/${atelier.id}`}>
                               <Button variant="outline" className="!px-3 !py-2 !text-xs">
                                 <Eye className="w-3 h-3" /> Voir profil
                               </Button>

@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, CheckCircle, Loader, Store } from 'lucide-react';
-import Card from '../../components/Common/Card';
+import Card   from '../../components/Common/Card';
 import Button from '../../components/Common/Button';
-import { useAuth } from '../../components/Auth/AuthContext';
+import { atelierAPI, serviceAPI } from '../../../../services/api';
 
 export default function ServiceRequest() {
-  const { artisanId }  = useParams(); // = atelier_id
-  const navigate       = useNavigate();
-  const { accesToken } = useAuth();
+  const { artisanId } = useParams(); // = atelier_id
+  const navigate      = useNavigate();
 
   const [loading,     setLoading]     = useState(false);
   const [success,     setSuccess]     = useState(false);
@@ -16,44 +15,38 @@ export default function ServiceRequest() {
   const [atelierInfo, setAtelierInfo] = useState(null);
   const [offres,      setOffres]      = useState([]);
 
-  // Champs exacts attendus par le back :
-  // atelier_id (required), offre_id (nullable), description (nullable)
   const [formData, setFormData] = useState({
     offre_id:    '',
     description: '',
   });
 
-  // Charger l'atelier et ses offres
+  // ── GET /ateliers/:id ──────────────────────────────────────
   useEffect(() => {
     if (!artisanId) return;
+
     const fetchAtelier = async () => {
       try {
-        const res = await fetch(`/api/ateliers/${artisanId}`, {
-          headers: { Accept: 'application/json', Authorization: `Bearer ${accesToken}` },
-          credentials: 'include',
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const atelier = data.atelier ?? data;
-          setAtelierInfo(atelier);
-          setOffres(atelier.offres ?? []);
-        }
-      } catch { /* ignore */ }
+        const data    = await atelierAPI.show(artisanId); // GET /ateliers/:id
+        const atelier = data.atelier ?? data;
+        setAtelierInfo(atelier);
+        setOffres(atelier.offres ?? []);
+      } catch {
+        // Atelier introuvable → on laisse le form vide
+      }
     };
+
     fetchAtelier();
-  }, [artisanId, accesToken]);
+  }, [artisanId]);
 
   const validate = () => {
     const e = {};
-    // description est nullable dans le back, mais on encourage l'utilisateur
-    if (formData.description && formData.description.trim().length > 0
-      && formData.description.trim().length < 5) {
+    if (formData.description.trim().length > 0 && formData.description.trim().length < 5) {
       e.description = 'Description trop courte (min 5 caractères)';
     }
     return e;
   };
 
-  // POST /api/services
+  // ── POST /services ─────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = validate();
@@ -63,39 +56,25 @@ export default function ServiceRequest() {
     try {
       const payload = {
         atelier_id:  Number(artisanId),
-        offre_id:    formData.offre_id ? Number(formData.offre_id) : undefined,
+        offre_id:    formData.offre_id    ? Number(formData.offre_id)    : undefined,
         description: formData.description.trim() || undefined,
       };
 
-      const res = await fetch('/api/services', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept:          'application/json',
-          Authorization:   `Bearer ${accesToken}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.errors) {
-          const mapped = {};
-          Object.keys(data.errors).forEach(k => { mapped[k] = data.errors[k][0]; });
-          setErrors(mapped);
-        } else {
-          setErrors({ submit: data.message ?? 'Une erreur est survenue' });
-        }
-        return;
-      }
+      await serviceAPI.store(payload); // POST /services
 
       setSuccess(true);
       setTimeout(() => navigate('/my-services'), 2000);
 
-    } catch {
-      setErrors({ submit: 'Impossible de contacter le serveur. Vérifiez votre connexion.' });
+    } catch (err) {
+      if (err.errors) {
+        const mapped = {};
+        Object.entries(err.errors).forEach(([k, msgs]) => {
+          mapped[k] = Array.isArray(msgs) ? msgs[0] : msgs;
+        });
+        setErrors(mapped);
+      } else {
+        setErrors({ submit: err.message || 'Une erreur est survenue.' });
+      }
     } finally {
       setLoading(false);
     }
@@ -107,26 +86,25 @@ export default function ServiceRequest() {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  if (success) {
-    return (
-      <div className="flex items-center justify-center min-h-screen pt-24 pb-20"
-        style={{ backgroundColor: 'var(--light)' }}>
-        <Card className="w-full max-w-md p-12 text-center">
-          <div className="flex items-center justify-center w-20 h-20 mx-auto mb-6 rounded-full"
-            style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)' }}>
-            <CheckCircle className="w-12 h-12" style={{ color: '#22c55e' }} />
-          </div>
-          <h2 className="mb-4 text-3xl font-black" style={{ color: 'var(--dark)' }}>Demande envoyée !</h2>
-          <p className="mb-6 text-sm" style={{ color: 'var(--dark)', opacity: 0.7 }}>
-            Votre demande a été transmise. L'artisan vous contactera bientôt.
-          </p>
-          <Button onClick={() => navigate('/my-services')} className="w-full">
-            Voir mes demandes
-          </Button>
-        </Card>
-      </div>
-    );
-  }
+  // ── Succès ─────────────────────────────────────────────────
+  if (success) return (
+    <div className="flex items-center justify-center min-h-screen pt-24 pb-20"
+      style={{ backgroundColor: 'var(--light)' }}>
+      <Card className="w-full max-w-md p-12 text-center">
+        <div className="flex items-center justify-center w-20 h-20 mx-auto mb-6 rounded-full"
+          style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)' }}>
+          <CheckCircle className="w-12 h-12" style={{ color: '#22c55e' }} />
+        </div>
+        <h2 className="mb-4 text-3xl font-black" style={{ color: 'var(--dark)' }}>Demande envoyée !</h2>
+        <p className="mb-6 text-sm" style={{ color: 'var(--dark)', opacity: 0.7 }}>
+          Votre demande a été transmise. L'artisan vous contactera bientôt.
+        </p>
+        <Button onClick={() => navigate('/my-services')} className="w-full">
+          Voir mes demandes
+        </Button>
+      </Card>
+    </div>
+  );
 
   return (
     <div className="min-h-screen pt-24 pb-20" style={{ backgroundColor: 'var(--light)' }}>
@@ -169,7 +147,7 @@ export default function ServiceRequest() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
 
-            {/* Choisir une offre (optionnel) */}
+            {/* Offre (optionnel) */}
             {offres.length > 0 && (
               <div>
                 <label className="block mb-2 text-sm font-bold" style={{ color: 'var(--dark)' }}>
@@ -186,7 +164,6 @@ export default function ServiceRequest() {
                   ))}
                 </select>
 
-                {/* Détail de l'offre sélectionnée */}
                 {formData.offre_id && (
                   <div className="p-3 mt-2 text-sm rounded-lg"
                     style={{ backgroundColor: 'rgba(74,111,165,0.05)', color: 'var(--dark)' }}>

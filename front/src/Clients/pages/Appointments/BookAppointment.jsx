@@ -1,55 +1,50 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock, FileText, CheckCircle, Loader } from 'lucide-react';
-import { useAuth } from '../../components/Auth/AuthContext';
+import { atelierAPI, rendezVousAPI } from '../../../../services/api';
 
 export default function BookAppointment() {
-  const { artisanId } = useParams(); // ici c'est en réalité l'atelier_id
+  const { artisanId } = useParams(); // = atelier_id
   const navigate      = useNavigate();
-  const { accesToken } = useAuth();
 
-  const [loading,     setLoading]     = useState(false);
-  const [success,     setSuccess]     = useState(false);
-  const [errors,      setErrors]      = useState({});
-  const [apiError,    setApiError]    = useState('');
-  const [atelierInfo, setAtelierInfo] = useState(null);
+  const [loading,       setLoading]       = useState(false);
+  const [success,       setSuccess]       = useState(false);
+  const [errors,        setErrors]        = useState({});
+  const [apiError,      setApiError]      = useState('');
+  const [atelierInfo,   setAtelierInfo]   = useState(null);
   const [disponibilite, setDisponibilite] = useState([]);
 
-  // Champs exacts attendus par le back :
-  // atelier_id, date_rdv, duree_minutes (opt), message (opt)
   const [formData, setFormData] = useState({
-    date_rdv:       '',
-    duree_minutes:  60,
-    message:        '',
+    date_rdv:      '',
+    duree_minutes: 60,
+    message:       '',
   });
 
-  // GET /api/ateliers/{id} + GET /api/ateliers/{id}/disponibilite
+  // ── GET /ateliers/:id + GET /ateliers/:id/disponibilite ───
   useEffect(() => {
     if (!artisanId) return;
+
     const fetchInfo = async () => {
       try {
-        const [resAtelier, resDisp] = await Promise.all([
-          fetch(`/api/ateliers/${artisanId}`, {
-            headers: { Accept: 'application/json', Authorization: `Bearer ${accesToken}` },
-            credentials: 'include',
-          }),
-          fetch(`/api/ateliers/${artisanId}/disponibilite`, {
-            headers: { Accept: 'application/json', Authorization: `Bearer ${accesToken}` },
-            credentials: 'include',
-          }),
+        const [dataAtelier, dataDisp] = await Promise.allSettled([
+          atelierAPI.show(artisanId),
+          atelierAPI.disponibilite(artisanId),
         ]);
-        if (resAtelier.ok) {
-          const data = await resAtelier.json();
-          setAtelierInfo(data.atelier ?? data);
+
+        if (dataAtelier.status === 'fulfilled') {
+          const d = dataAtelier.value;
+          setAtelierInfo(d.atelier ?? d);
         }
-        if (resDisp.ok) {
-          const data = await resDisp.json();
-          setDisponibilite(data.disponibilites ?? data.slots ?? []);
+
+        if (dataDisp.status === 'fulfilled') {
+          const d = dataDisp.value;
+          setDisponibilite(d.disponibilites ?? d.slots ?? []);
         }
-      } catch { /* ignore */ }
+      } catch { /* ignore — page fonctionne sans ces infos */ }
     };
+
     fetchInfo();
-  }, [artisanId, accesToken]);
+  }, [artisanId]);
 
   const validate = () => {
     const e = {};
@@ -57,7 +52,7 @@ export default function BookAppointment() {
     return e;
   };
 
-  // POST /api/rendez-vous
+  // ── POST /rendez-vous ──────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = validate();
@@ -67,39 +62,26 @@ export default function BookAppointment() {
     setApiError('');
 
     try {
-      const res = await fetch('/api/rendez-vous', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept:          'application/json',
-          Authorization:   `Bearer ${accesToken}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          atelier_id:    Number(artisanId),
-          date_rdv:      formData.date_rdv,
-          duree_minutes: Number(formData.duree_minutes) || 60,
-          message:       formData.message || undefined,
-        }),
+      await rendezVousAPI.store({
+        atelier_id:    Number(artisanId),
+        date_rdv:      formData.date_rdv,
+        duree_minutes: Number(formData.duree_minutes) || 60,
+        message:       formData.message || undefined,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.errors) {
-          const mapped = {};
-          Object.entries(data.errors).forEach(([k, v]) => { mapped[k] = Array.isArray(v) ? v[0] : v; });
-          setErrors(mapped);
-          return;
-        }
-        throw new Error(data.message || `Erreur ${res.status}`);
-      }
 
       setSuccess(true);
       setTimeout(() => navigate('/my-appointments'), 2000);
 
     } catch (err) {
-      setApiError(err.message || 'Erreur lors de la réservation');
+      if (err.errors) {
+        const mapped = {};
+        Object.entries(err.errors).forEach(([k, v]) => {
+          mapped[k] = Array.isArray(v) ? v[0] : v;
+        });
+        setErrors(mapped);
+      } else {
+        setApiError(err.message || 'Erreur lors de la réservation.');
+      }
     } finally {
       setLoading(false);
     }
@@ -113,6 +95,7 @@ export default function BookAppointment() {
 
   const artisanName = atelierInfo?.nom ?? 'Artisan';
 
+  // ── Succès ─────────────────────────────────────────────────
   if (success) return (
     <div className="flex items-center justify-center min-h-screen pt-24 pb-20" style={{ backgroundColor: '#f8f9fa' }}>
       <div className="w-full max-w-md p-12 text-center bg-white shadow-xl rounded-2xl">
@@ -170,7 +153,7 @@ export default function BookAppointment() {
 
               <form onSubmit={handleSubmit} className="space-y-6">
 
-                {/* Date et heure → date_rdv */}
+                {/* Date et heure */}
                 <div>
                   <label className="block mb-2 text-sm font-bold" style={{ color: '#2b2d42' }}>
                     Date et heure <span style={{ color: '#ff7e5f' }}>*</span>
@@ -210,7 +193,7 @@ export default function BookAppointment() {
                   )}
                 </div>
 
-                {/* Durée → duree_minutes */}
+                {/* Durée */}
                 <div>
                   <label className="block mb-2 text-sm font-bold" style={{ color: '#2b2d42' }}>
                     Durée estimée
@@ -232,7 +215,7 @@ export default function BookAppointment() {
                   </div>
                 </div>
 
-                {/* Message → message */}
+                {/* Message */}
                 <div>
                   <label className="block mb-2 text-sm font-bold" style={{ color: '#2b2d42' }}>
                     Message pour l'artisan <span className="font-normal text-gray-400">(optionnel)</span>

@@ -1,100 +1,68 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Bell, CheckCircle, X, Calendar, FileText, Star, Clock, Trash2, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../components/Auth/AuthContext';
+import { notificationAPI } from '../../../../services/api';
 
 export default function NotificationsList() {
-  const { accesToken } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading,       setLoading]       = useState(true);
   const [error,         setError]         = useState(null);
   const [filter,        setFilter]        = useState('all');
   const [unreadCount,   setUnreadCount]   = useState(0);
 
+  // ── GET /notifications ─────────────────────────────────────
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const url = filter !== 'all'
-        ? `/api/notifications?filter=${filter}`
-        : '/api/notifications';
-      const res = await fetch(url, {
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        },
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error(`Erreur serveur ${res.status}`);
-      const data = await res.json();
-      setNotifications(data.notifications ?? data.data ?? []);
-      setUnreadCount(data.unread_count ?? 0);
+      const data = await notificationAPI.index();
+      const list = data.notifications ?? data.data ?? [];
+
+      // Filtre côté client (le back peut aussi gérer ?filter=)
+      const filtered = filter === 'all'
+        ? list
+        : list.filter(n => filter === 'unread' ? !n.lu && !n.read : n.lu || n.read);
+
+      setNotifications(filtered);
+      setUnreadCount(data.unread_count ?? list.filter(n => !n.lu && !n.read).length);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Erreur lors du chargement.');
     } finally {
       setLoading(false);
     }
-  }, [accesToken, filter]);
+  }, [filter]);
 
-  useEffect(() => {
-    if (accesToken) fetchNotifications();
-  }, [fetchNotifications]);
+  useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
-  const handleMarkAsRead = async (notificationId) => {
-    // Optimistic update
-    setNotifications(prev =>
-      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-    );
+  // ── PATCH /notifications/:id/lu ───────────────────────────
+  const handleMarkAsRead = async (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, lu: true, read: true } : n));
     setUnreadCount(prev => Math.max(0, prev - 1));
     try {
-      await fetch(`/api/notifications/${notificationId}/read`, {
-        method: 'PUT',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        },
-        credentials: 'include',
-      });
+      await notificationAPI.marquerLue(id);
     } catch {
-      // En cas d'erreur on resynchronise
       fetchNotifications();
     }
   };
 
+  // ── PATCH /notifications/lire-tout ────────────────────────
   const handleMarkAllAsRead = async () => {
-    // Optimistic update
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications(prev => prev.map(n => ({ ...n, lu: true, read: true })));
     setUnreadCount(0);
     try {
-      await fetch('/api/notifications/read-all', {
-        method: 'PUT',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        },
-        credentials: 'include',
-      });
+      await notificationAPI.marquerToutesLues();
     } catch {
       fetchNotifications();
     }
   };
 
-  const handleDelete = async (notificationId) => {
-    // Optimistic update
-    const deleted = notifications.find(n => n.id === notificationId);
-    setNotifications(prev => prev.filter(n => n.id !== notificationId));
-    if (deleted && !deleted.read) setUnreadCount(prev => Math.max(0, prev - 1));
-
+  // ── DELETE /notifications/:id ──────────────────────────────
+  const handleDelete = async (id) => {
+    const deleted = notifications.find(n => n.id === id);
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    if (deleted && !deleted.lu && !deleted.read) setUnreadCount(prev => Math.max(0, prev - 1));
     try {
-      const res = await fetch(`/api/notifications/${notificationId}`, {
-        method: 'DELETE',
-        headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        },
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error();
+      await notificationAPI.destroy(id);
     } catch {
       fetchNotifications();
     }
@@ -102,14 +70,14 @@ export default function NotificationsList() {
 
   const getNotificationIcon = (type) => {
     const icons = {
-      service_accepted:      { Icon: CheckCircle, color: '#22c55e', bg: 'rgba(34, 197, 94, 0.1)'   },
-      service_refused:       { Icon: X,           color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)'   },
-      appointment_confirmed: { Icon: Calendar,    color: '#4a6fa5', bg: 'rgba(74, 111, 165, 0.1)'  },
-      appointment_cancelled: { Icon: X,           color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)'   },
-      new_message:           { Icon: FileText,    color: '#ff7e5f', bg: 'rgba(255, 126, 95, 0.1)'  },
-      review_request:        { Icon: Star,        color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.1)'  },
-      service_completed:     { Icon: CheckCircle, color: '#22c55e', bg: 'rgba(34, 197, 94, 0.1)'   },
-      reminder:              { Icon: Clock,       color: '#fb923c', bg: 'rgba(251, 146, 60, 0.1)'  },
+      service_accepted:      { Icon: CheckCircle, color: '#22c55e', bg: 'rgba(34, 197, 94, 0.1)'  },
+      service_refused:       { Icon: X,           color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)'  },
+      appointment_confirmed: { Icon: Calendar,    color: '#4a6fa5', bg: 'rgba(74, 111, 165, 0.1)' },
+      appointment_cancelled: { Icon: X,           color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)'  },
+      new_message:           { Icon: FileText,    color: '#ff7e5f', bg: 'rgba(255, 126, 95, 0.1)' },
+      review_request:        { Icon: Star,        color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.1)' },
+      service_completed:     { Icon: CheckCircle, color: '#22c55e', bg: 'rgba(34, 197, 94, 0.1)'  },
+      reminder:              { Icon: Clock,       color: '#fb923c', bg: 'rgba(251, 146, 60, 0.1)' },
     };
     return icons[type] ?? icons.new_message;
   };
@@ -177,7 +145,6 @@ export default function NotificationsList() {
           </div>
         )}
 
-        {/* Liste */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="w-12 h-12 border-4 border-blue-600 rounded-full border-t-transparent animate-spin" />
@@ -186,7 +153,7 @@ export default function NotificationsList() {
           <div className="space-y-3">
             {notifications.map(notification => {
               const { Icon, color, bg } = getNotificationIcon(notification.type);
-              const isUnread = !notification.read;
+              const isUnread = !notification.lu && !notification.read;
               return (
                 <div key={notification.id}
                   className={`p-5 bg-white shadow-sm transition-all rounded-xl ${isUnread ? 'border-l-4' : ''}`}
@@ -202,10 +169,10 @@ export default function NotificationsList() {
                       <div className="flex items-start justify-between gap-4 mb-2">
                         <div className="flex-1">
                           <h3 className="mb-1 font-bold" style={{ color: '#2b2d42' }}>
-                            {notification.title}
+                            {notification.title ?? notification.titre}
                           </h3>
                           <p className="text-sm leading-relaxed text-gray-600">
-                            {notification.message}
+                            {notification.message ?? notification.contenu}
                           </p>
                         </div>
                         {isUnread && (

@@ -1,93 +1,63 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
-  Star, MapPin, Phone, Mail, Calendar, Clock, Shield,
+  Star, MapPin, Calendar, Clock, Shield,
   MessageCircle, ChevronLeft, Heart, Share2, CheckCircle,
   Edit, Plus, Store, Hammer, AlertCircle, Loader
 } from 'lucide-react';
-import Button from '../../components/Common/Button';
-import Card from '../../components/Common/Card';
 import { useAuth } from '../../components/Auth/AuthContext';
+import { atelierAPI } from '../../../../services/api';
 
 export default function ArtisanDetail() {
-  const { id }               = useParams();
-  const navigate             = useNavigate();
-  const { user, accesToken } = useAuth();
+  const { id }      = useParams();
+  const navigate    = useNavigate();
+  const { user }    = useAuth(); // token géré par api.js — plus besoin de accesToken
 
-  const [atelier,   setAtelier]   = useState(null);
-  const [reviews,   setReviews]   = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState(null);
-  const [activeTab, setActiveTab] = useState('about');
-
-  // L'artisan connecté consulte-t-il SA propre page ?
-  // On compare via l'atelier chargé (artisan.utilisateur_id === user.id)
+  const [atelier,      setAtelier]      = useState(null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState(null);
+  const [activeTab,    setActiveTab]    = useState('about');
   const [isOwnProfile, setIsOwnProfile] = useState(false);
 
-  // ── Charger l'atelier (public) OU mon-atelier (artisan connecté)
+  // ── GET /ateliers/:id  (+ /mon-atelier si c'est le sien) ──
   useEffect(() => {
     const fetchAtelier = async () => {
       setLoading(true);
       setError(null);
       try {
-        // D'abord on charge l'atelier public
-        const res = await fetch(`/api/ateliers/${id}`, {
-          headers:     { Accept: 'application/json' },
-          credentials: 'include',
-        });
-        if (!res.ok) throw new Error('Atelier introuvable');
-        const data    = await res.json();
+        const data        = await atelierAPI.show(id);
         const atelierData = data.atelier ?? data;
         setAtelier(atelierData);
 
-        // Déterminer si c'est le propre profil de l'artisan connecté
+        // Vérifie si c'est le propre atelier de l'artisan connecté
         const artisanUserId = atelierData?.artisan?.utilisateur_id
           ?? atelierData?.artisan?.utilisateur?.id;
+
         if (user && artisanUserId && String(artisanUserId) === String(user.id)) {
           setIsOwnProfile(true);
-          // Recharger avec les données complètes (mon-atelier inclut galerie, offres, oeuvres)
-          const resMine = await fetch('/api/mon-atelier', {
-            headers: {
-              Accept:        'application/json',
-              Authorization: `Bearer ${accesToken}`,
-            },
-            credentials: 'include',
-          });
-          if (resMine.ok) {
-            const dataMine = await resMine.json();
+          try {
+            // Recharge les données complètes (offres, oeuvres, galerie…)
+            const dataMine = await atelierAPI.monAtelier();
             setAtelier(dataMine.atelier ?? dataMine);
-          }
+          } catch { /* garder les données publiques si ça échoue */ }
         }
       } catch (e) {
-        setError(e.message);
+        setError(e.message || 'Atelier introuvable');
       } finally {
         setLoading(false);
       }
     };
     fetchAtelier();
-  }, [id, user, accesToken]);
+  }, [id, user]);
 
-  // ── Charger les avis à la demande (onglet avis, vue client)
-  useEffect(() => {
-    if (isOwnProfile || activeTab !== 'reviews') return;
-    const fetchReviews = async () => {
-      try {
-        // Les avis sont déjà dans atelier.avis (chargé avec le show)
-        if (atelier?.avis?.length) {
-          setReviews(atelier.avis);
-        }
-      } catch { /* silencieux */ }
-    };
-    fetchReviews();
-  }, [activeTab, isOwnProfile, atelier]);
-
-  // ── Helpers
+  // ── Helpers ────────────────────────────────────────────────
   const artisanUser = atelier?.artisan?.utilisateur ?? null;
   const fullName    = artisanUser
     ? `${artisanUser.prenom ?? ''} ${artisanUser.nom ?? ''}`.trim() || atelier?.nom
     : atelier?.nom ?? '';
   const initiale    = fullName.charAt(0).toUpperCase();
-  const photo       = artisanUser?.photo_profil ?? atelier?.image_principale ?? null;
+  const photo       = artisanUser?.photo_profil ?? atelier?.image_url ?? atelier?.image_principale ?? null;
+  const coverPhoto  = atelier?.image_url ?? atelier?.image_principale ?? null;
   const rating      = atelier?.avis_avg_note ? Number(atelier.avis_avg_note).toFixed(1) : null;
   const avisCount   = atelier?.avis_count ?? atelier?.avis?.length ?? 0;
 
@@ -112,13 +82,13 @@ export default function ArtisanDetail() {
 
   const tabs = isOwnProfile
     ? [
-        { id: 'about',   label: 'Mon profil'    },
-        { id: 'atelier', label: 'Mon atelier'   },
+        { id: 'about',   label: 'Mon profil'  },
+        { id: 'atelier', label: 'Mon atelier' },
       ]
     : [
-        { id: 'about',   label: 'À propos'                   },
-        { id: 'atelier', label: 'Atelier & Offres'           },
-        { id: 'reviews', label: `Avis (${avisCount})`        },
+        { id: 'about',   label: 'À propos'                },
+        { id: 'atelier', label: 'Atelier & Offres'        },
+        { id: 'reviews', label: `Avis (${avisCount})`     },
       ];
 
   return (
@@ -141,8 +111,8 @@ export default function ArtisanDetail() {
             <div className="overflow-hidden bg-white shadow-lg rounded-2xl">
               <div className="relative h-64"
                 style={{ background: 'linear-gradient(135deg, #4a6fa5 0%, #2d4a7c 100%)' }}>
-                {atelier.image_principale && (
-                  <img src={atelier.image_principale} alt={fullName}
+                {coverPhoto && (
+                  <img src={coverPhoto} alt={fullName}
                     className="object-cover w-full h-full opacity-30" />
                 )}
 
@@ -296,10 +266,9 @@ export default function ArtisanDetail() {
                           )}
                         </div>
 
-                        {atelier.image_principale && (
+                        {coverPhoto && (
                           <div className="h-56 overflow-hidden rounded-xl">
-                            <img src={atelier.image_principale} alt={atelier.nom}
-                              className="object-cover w-full h-full" />
+                            <img src={coverPhoto} alt={atelier.nom} className="object-cover w-full h-full" />
                           </div>
                         )}
 
@@ -318,7 +287,7 @@ export default function ArtisanDetail() {
                                   </div>
                                   <div className="ml-4 text-right">
                                     <div className="text-lg font-black" style={{ color: '#ff7e5f' }}>
-                                      {offre.prix ? `${offre.prix} FCFA` : 'Sur devis'}
+                                      {offre.prix ? `${Number(offre.prix).toLocaleString('fr-FR')} FCFA` : 'Sur devis'}
                                     </div>
                                     {!isOwnProfile && (
                                       <Link to={`/services/request/${atelier.id}`}>
@@ -342,8 +311,8 @@ export default function ArtisanDetail() {
                 {/* ── Avis (vue client) */}
                 {activeTab === 'reviews' && !isOwnProfile && (
                   <div className="space-y-4">
-                    {(atelier.avis?.length > 0 ? atelier.avis : reviews).length > 0 ? (
-                      (atelier.avis?.length > 0 ? atelier.avis : reviews).map(avis => {
+                    {atelier.avis?.length > 0 ? (
+                      atelier.avis.map(avis => {
                         const author  = avis.client?.prenom ?? avis.client?.nom ?? 'Client';
                         const note    = avis.note ?? 0;
                         const comment = avis.commentaire ?? '';
@@ -383,24 +352,22 @@ export default function ArtisanDetail() {
           {/* ── Sidebar */}
           <div className="space-y-6 lg:col-span-1">
             {isOwnProfile ? (
-              <>
-                <div className="p-6 bg-white shadow-lg rounded-2xl">
-                  <h3 className="mb-4 text-xl font-bold" style={{ color: '#2b2d42' }}>Mon espace artisan</h3>
-                  <div className="space-y-3">
-                    <Link to="/profile/edit">
-                      <button className="flex items-center w-full gap-3 p-3 transition-all border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 group">
-                        <Edit className="w-5 h-5 text-gray-400 group-hover:text-blue-600" />
-                        <span className="text-sm font-bold" style={{ color: '#2b2d42' }}>Modifier mon profil</span>
-                      </button>
-                    </Link>
-                    <button onClick={() => navigate(`/atelier/${atelier.id}/edit`)}
-                      className="flex items-center w-full gap-3 p-3 transition-all border-2 border-gray-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 group">
-                      <Store className="w-5 h-5 text-gray-400 group-hover:text-orange-600" />
-                      <span className="text-sm font-bold" style={{ color: '#2b2d42' }}>Gérer mon atelier</span>
+              <div className="p-6 bg-white shadow-lg rounded-2xl">
+                <h3 className="mb-4 text-xl font-bold" style={{ color: '#2b2d42' }}>Mon espace artisan</h3>
+                <div className="space-y-3">
+                  <Link to="/profile/edit">
+                    <button className="flex items-center w-full gap-3 p-3 transition-all border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 group">
+                      <Edit className="w-5 h-5 text-gray-400 group-hover:text-blue-600" />
+                      <span className="text-sm font-bold" style={{ color: '#2b2d42' }}>Modifier mon profil</span>
                     </button>
-                  </div>
+                  </Link>
+                  <button onClick={() => navigate(`/atelier/${atelier.id}/edit`)}
+                    className="flex items-center w-full gap-3 p-3 transition-all border-2 border-gray-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 group">
+                    <Store className="w-5 h-5 text-gray-400 group-hover:text-orange-600" />
+                    <span className="text-sm font-bold" style={{ color: '#2b2d42' }}>Gérer mon atelier</span>
+                  </button>
                 </div>
-              </>
+              </div>
             ) : (
               <>
                 <div className="p-6 bg-white shadow-lg rounded-2xl">

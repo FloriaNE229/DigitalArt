@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../components/Auth/AuthContext';
 import { Clock, Plus, Trash2, ToggleLeft, ToggleRight, Save } from 'lucide-react';
+import { horaireAPI } from '../../../../services/api';
 
 const JOURS = [
-  { id: 1, nom: 'Lundi' },
-  { id: 2, nom: 'Mardi' },
+  { id: 1, nom: 'Lundi'    },
+  { id: 2, nom: 'Mardi'    },
   { id: 3, nom: 'Mercredi' },
-  { id: 4, nom: 'Jeudi' },
+  { id: 4, nom: 'Jeudi'    },
   { id: 5, nom: 'Vendredi' },
-  { id: 6, nom: 'Samedi' },
+  { id: 6, nom: 'Samedi'   },
   { id: 0, nom: 'Dimanche' },
 ];
 
-export default function GestionHoraires() {
-  const { accesToken } = useAuth();
+const DEFAULT_HORAIRE = (jour) => ({
+  jour_semaine: jour, heure_debut: '08:00', heure_fin: '17:00', actif: false,
+});
 
+export default function GestionHoraires() {
   const [horaires,      setHoraires]      = useState({});
   const [indispos,      setIndispos]      = useState([]);
   const [loading,       setLoading]       = useState(true);
@@ -24,29 +26,21 @@ export default function GestionHoraires() {
   const [newIndispo,    setNewIndispo]    = useState({ date_debut: '', date_fin: '', motif: '' });
   const [addingIndispo, setAddingIndispo] = useState(false);
 
-  // ── Chargement initial
+  // ── GET /horaires + GET /indisponibilites ──────────────────
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const headers = {
-          Accept: 'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        };
-        const [resH, resI] = await Promise.all([
-          fetch('/api/horaires',       { headers }),
-          fetch('/api/indisponibilites', { headers }),
+        const [dataH, dataI] = await Promise.all([
+          horaireAPI.index(),         // GET /horaires
+          horaireAPI.indisponibilites(),  // GET /indisponibilites
         ]);
-        const dataH = await resH.json();
-        const dataI = await resI.json();
 
-        // Construire un objet { jour_semaine: horaire }
         const map = {};
-        JOURS.forEach(j => {
-          map[j.id] = { jour_semaine: j.id, heure_debut: '08:00', heure_fin: '17:00', actif: false };
-        });
-        (dataH.horaires ?? []).forEach(h => { map[h.jour_semaine] = h; });
+        JOURS.forEach(j => { map[j.id] = DEFAULT_HORAIRE(j.id); });
+        (dataH.horaires ?? dataH.data ?? []).forEach(h => { map[h.jour_semaine] = h; });
+
         setHoraires(map);
-        setIndispos(dataI.indisponibilites ?? []);
+        setIndispos(dataI.indisponibilites ?? dataI.data ?? []);
       } catch {
         setError('Erreur lors du chargement des horaires.');
       } finally {
@@ -54,35 +48,52 @@ export default function GestionHoraires() {
       }
     };
     fetchAll();
-  }, [accesToken]);
+  }, []);
 
-  // ── Sauvegarder les horaires
+  // ── PUT /horaires ──────────────────────────────────────────
   const handleSave = async () => {
     setSaving(true);
     setError('');
     setSuccess('');
     try {
-      const res = await fetch('/api/horaires', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        },
-        body: JSON.stringify({ horaires: Object.values(horaires) }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? 'Erreur');
+      await horaireAPI.upsert({ horaires: Object.values(horaires) });
       setSuccess('Horaires sauvegardés avec succès !');
       setTimeout(() => setSuccess(''), 3000);
     } catch (e) {
-      setError(e.message);
+      setError(e.message || 'Erreur lors de la sauvegarde.');
     } finally {
       setSaving(false);
     }
   };
 
-  // ── Toggle jour
+  // ── POST /indisponibilites ─────────────────────────────────
+  const handleAddIndispo = async () => {
+    if (!newIndispo.date_debut || !newIndispo.date_fin) return;
+    setAddingIndispo(true);
+    try {
+      const data = await horaireAPI.ajouterIndisponibilite(newIndispo);
+      const indispo = data.indisponibilite ?? data;
+      setIndispos(prev => [...prev, indispo]);
+      setNewIndispo({ date_debut: '', date_fin: '', motif: '' });
+      setSuccess('Indisponibilité ajoutée !');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e) {
+      setError(e.message || 'Erreur lors de l\'ajout.');
+    } finally {
+      setAddingIndispo(false);
+    }
+  };
+
+  // ── DELETE /indisponibilites/:id ───────────────────────────
+  const handleDeleteIndispo = async (id) => {
+    try {
+      await horaireAPI.supprimerIndisponibilite(id);
+      setIndispos(prev => prev.filter(i => i.id !== id));
+    } catch {
+      setError('Erreur lors de la suppression.');
+    }
+  };
+
   const toggleJour = (jour) => {
     setHoraires(prev => ({
       ...prev,
@@ -90,52 +101,11 @@ export default function GestionHoraires() {
     }));
   };
 
-  // ── Modifier heure
   const setHeure = (jour, field, value) => {
     setHoraires(prev => ({
       ...prev,
       [jour]: { ...prev[jour], [field]: value },
     }));
-  };
-
-  // ── Ajouter indisponibilité
-  const handleAddIndispo = async () => {
-    if (!newIndispo.date_debut || !newIndispo.date_fin) return;
-    setAddingIndispo(true);
-    try {
-      const res = await fetch('/api/indisponibilites', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        },
-        body: JSON.stringify(newIndispo),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? 'Erreur');
-      setIndispos(prev => [...prev, data.indisponibilite]);
-      setNewIndispo({ date_debut: '', date_fin: '', motif: '' });
-      setSuccess('Indisponibilité ajoutée !');
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setAddingIndispo(false);
-    }
-  };
-
-  // ── Supprimer indisponibilité
-  const handleDeleteIndispo = async (id) => {
-    try {
-      await fetch(`/api/indisponibilites/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${accesToken}` },
-      });
-      setIndispos(prev => prev.filter(i => i.id !== id));
-    } catch {
-      setError('Erreur lors de la suppression.');
-    }
   };
 
   if (loading) return (
@@ -159,23 +129,22 @@ export default function GestionHoraires() {
         <h2 className="mb-5 text-lg font-bold" style={{ color: 'var(--dark)' }}>Jours et heures de travail</h2>
         <div className="space-y-3">
           {JOURS.map(jour => {
-            const h = horaires[jour.id] ?? { actif: false, heure_debut: '08:00', heure_fin: '17:00' };
+            const h = horaires[jour.id] ?? DEFAULT_HORAIRE(jour.id);
             return (
-              <div key={jour.id} className={`flex items-center gap-4 p-3 rounded-xl transition-colors ${h.actif ? 'bg-blue-50' : 'bg-gray-50'}`}>
-                {/* Toggle */}
+              <div key={jour.id}
+                className={`flex items-center gap-4 p-3 rounded-xl transition-colors ${h.actif ? 'bg-blue-50' : 'bg-gray-50'}`}>
+
                 <button onClick={() => toggleJour(jour.id)} className="flex-shrink-0">
                   {h.actif
                     ? <ToggleRight className="w-8 h-8" style={{ color: 'var(--primary)' }} />
                     : <ToggleLeft  className="w-8 h-8 text-gray-400" />}
                 </button>
 
-                {/* Nom du jour */}
                 <span className={`w-24 text-sm font-semibold ${h.actif ? '' : 'text-gray-400'}`}
                   style={h.actif ? { color: 'var(--dark)' } : {}}>
                   {jour.nom}
                 </span>
 
-                {/* Heures */}
                 {h.actif ? (
                   <div className="flex items-center flex-1 gap-2">
                     <input type="time" value={h.heure_debut}
@@ -208,7 +177,6 @@ export default function GestionHoraires() {
       <div className="p-6 bg-white shadow-sm rounded-2xl" style={{ border: '1px solid var(--gray-dark)' }}>
         <h2 className="mb-5 text-lg font-bold" style={{ color: 'var(--dark)' }}>Indisponibilités</h2>
 
-        {/* Liste */}
         {indispos.length === 0 ? (
           <p className="mb-4 text-sm text-gray-500">Aucune indisponibilité planifiée.</p>
         ) : (
@@ -253,7 +221,8 @@ export default function GestionHoraires() {
             onChange={e => setNewIndispo(p => ({ ...p, motif: e.target.value }))}
             className="w-full px-3 py-2 mb-3 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
             style={{ borderColor: 'var(--gray-dark)' }} />
-          <button onClick={handleAddIndispo} disabled={addingIndispo || !newIndispo.date_debut || !newIndispo.date_fin}
+          <button onClick={handleAddIndispo}
+            disabled={addingIndispo || !newIndispo.date_debut || !newIndispo.date_fin}
             className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white transition-all rounded-lg shadow-md hover:shadow-lg disabled:opacity-50"
             style={{ backgroundColor: '#ff7e5f' }}>
             <Plus className="w-4 h-4" />

@@ -22,8 +22,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'suspendu' => \App\Http\Middleware\CheckSuspendu::class,    
         ]);
 
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+        ]);
+
         // Commenter si API mobile pure (pas de SPA cookie)
-        $middleware->statefulApi();
+        //$middleware->statefulApi();
     })
     ->withSchedule(function (Schedule $schedule) {
         // Rappels RDV envoyés chaque jour à 8h00

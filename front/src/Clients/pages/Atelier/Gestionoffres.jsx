@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../components/Auth/AuthContext';
 import { Tag, Plus, Trash2, Pencil, X, Check } from 'lucide-react';
+import { atelierAPI, offreAPI } from '../../../../services/api';
 
 export default function GestionOffres() {
-  const { accesToken } = useAuth();
-
   const [offres,   setOffres]   = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
@@ -16,14 +14,16 @@ export default function GestionOffres() {
   const emptyForm = { titre: '', description: '', prix: '' };
   const [form, setForm] = useState(emptyForm);
 
-  // ── Chargement — on récupère l'atelier d'abord pour avoir son ID
+  const notify = (msg, type = 'success') => {
+    if (type === 'success') setSuccess(msg); else setError(msg);
+    setTimeout(() => { setSuccess(''); setError(''); }, 3000);
+  };
+
+  // ── GET /mon-atelier → GET /ateliers/:id/offres ────────────
   useEffect(() => {
     const fetchOffres = async () => {
       try {
-        const resAtelier = await fetch('/api/mon-atelier', {
-          headers: { Authorization: `Bearer ${accesToken}`, Accept: 'application/json' },
-        });
-        const dataAtelier = await resAtelier.json();
+        const dataAtelier = await atelierAPI.monAtelier();
         const atelierId   = dataAtelier.atelier?.id ?? dataAtelier.id;
 
         if (!atelierId) {
@@ -32,11 +32,8 @@ export default function GestionOffres() {
           return;
         }
 
-        const res  = await fetch(`/api/ateliers/${atelierId}/offres`, {
-          headers: { Authorization: `Bearer ${accesToken}`, Accept: 'application/json' },
-        });
-        const data = await res.json();
-        setOffres(data.offres ?? []);
+        const data = await offreAPI.index(atelierId); // GET /ateliers/:id/offres
+        setOffres(data.offres ?? data.data ?? []);
       } catch {
         setError('Erreur lors du chargement des offres.');
       } finally {
@@ -44,42 +41,26 @@ export default function GestionOffres() {
       }
     };
     fetchOffres();
-  }, [accesToken]);
+  }, []);
 
-  const notify = (msg, type = 'success') => {
-    if (type === 'success') setSuccess(msg); else setError(msg);
-    setTimeout(() => { setSuccess(''); setError(''); }, 3000);
-  };
-
-  // ── Créer ou modifier
+  // ── POST /offres ou PUT /offres/:id ───────────────────────
   const handleSubmit = async () => {
     if (!form.titre) { setError('Le titre est requis.'); return; }
     setSaving(true);
     try {
-      const url    = editId ? `/api/offres/${editId}` : '/api/offres';
-      const method = editId ? 'PUT' : 'POST';
-
-      const res  = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${accesToken}`,
-        },
-        body: JSON.stringify({
-          titre:       form.titre,
-          description: form.description,
-          prix:        form.prix || null,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? 'Erreur');
+      const payload = {
+        titre:       form.titre,
+        description: form.description,
+        prix:        form.prix || null,
+      };
 
       if (editId) {
-        setOffres(prev => prev.map(o => o.id === editId ? data.offre : o));
+        const data = await offreAPI.update(editId, payload); // PUT /offres/:id
+        setOffres(prev => prev.map(o => o.id === editId ? (data.offre ?? data) : o));
         notify('Offre mise à jour !');
       } else {
-        setOffres(prev => [...prev, data.offre]);
+        const data = await offreAPI.store(payload);          // POST /offres
+        setOffres(prev => [...prev, data.offre ?? data]);
         notify('Offre créée !');
       }
 
@@ -87,33 +68,29 @@ export default function GestionOffres() {
       setShowForm(false);
       setEditId(null);
     } catch (e) {
-      setError(e.message);
+      setError(e.message || 'Erreur lors de l\'enregistrement.');
     } finally {
       setSaving(false);
     }
   };
 
-  // ── Éditer
-  const handleEdit = (offre) => {
-    setForm({ titre: offre.titre, description: offre.description ?? '', prix: offre.prix ?? '' });
-    setEditId(offre.id);
-    setShowForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // ── Supprimer
+  // ── DELETE /offres/:id ─────────────────────────────────────
   const handleDelete = async (id) => {
     if (!confirm('Supprimer cette offre ?')) return;
     try {
-      await fetch(`/api/offres/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${accesToken}` },
-      });
+      await offreAPI.destroy(id);
       setOffres(prev => prev.filter(o => o.id !== id));
       notify('Offre supprimée.');
     } catch {
       setError('Erreur lors de la suppression.');
     }
+  };
+
+  const handleEdit = (offre) => {
+    setForm({ titre: offre.titre, description: offre.description ?? '', prix: offre.prix ?? '' });
+    setEditId(offre.id);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCancel = () => {
@@ -157,7 +134,8 @@ export default function GestionOffres() {
           <div className="space-y-4">
             <div>
               <label className="block mb-1 text-xs font-semibold text-gray-500">Titre *</label>
-              <input type="text" value={form.titre} onChange={e => setForm(p => ({ ...p, titre: e.target.value }))}
+              <input type="text" value={form.titre}
+                onChange={e => setForm(p => ({ ...p, titre: e.target.value }))}
                 placeholder="Ex: Installation électrique complète"
                 className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 style={{ borderColor: 'var(--gray-dark)' }} />
@@ -165,7 +143,8 @@ export default function GestionOffres() {
 
             <div>
               <label className="block mb-1 text-xs font-semibold text-gray-500">Description</label>
-              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+              <textarea value={form.description}
+                onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                 placeholder="Décrivez votre offre en détail..."
                 rows={3}
                 className="w-full px-3 py-2 text-sm border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -174,7 +153,8 @@ export default function GestionOffres() {
 
             <div>
               <label className="block mb-1 text-xs font-semibold text-gray-500">Prix (FCFA)</label>
-              <input type="number" value={form.prix} onChange={e => setForm(p => ({ ...p, prix: e.target.value }))}
+              <input type="number" value={form.prix}
+                onChange={e => setForm(p => ({ ...p, prix: e.target.value }))}
                 placeholder="Laisser vide si sur devis"
                 className="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
                 style={{ borderColor: 'var(--gray-dark)' }} />

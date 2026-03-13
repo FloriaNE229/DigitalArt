@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Store, MapPin, Briefcase, FileText, Image, ChevronLeft, Loader, CheckCircle } from 'lucide-react';
-import { useAuth } from '../../components/Auth/AuthContext';
+import { useAuth }    from '../../components/Auth/AuthContext';
+import { atelierAPI } from '../../../../services/api';
 
 const DOMAINES = [
   'Plomberie', 'Électricité', 'Menuiserie', 'Peinture', 'Maçonnerie',
@@ -10,8 +11,8 @@ const DOMAINES = [
 ];
 
 export default function CreateAtelier() {
-  const navigate       = useNavigate();
-  const { accesToken } = useAuth();
+  const navigate  = useNavigate();
+  const { token } = useAuth(); // ✅ token (plus accesToken)
 
   const [form, setForm] = useState({
     nom:          '',
@@ -19,7 +20,7 @@ export default function CreateAtelier() {
     localisation: '',
     description:  '',
   });
-  // Fichier image séparé (le back attend un vrai fichier, pas une URL)
+
   const [imageFile,    setImageFile]    = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [errors,       setErrors]       = useState({});
@@ -47,45 +48,30 @@ export default function CreateAtelier() {
     setErrors({});
 
     try {
-      // Le back attend multipart/form-data (image_principale est un fichier)
+      // FormData — le back attend multipart/form-data
       const formData = new FormData();
       formData.append('nom',          form.nom.trim());
       formData.append('domaine',      form.domaine);
       formData.append('localisation', form.localisation.trim());
       formData.append('description',  form.description.trim());
-      if (imageFile) {
-        formData.append('image_principale', imageFile);
-      }
+      if (imageFile) formData.append('image_principale', imageFile);
 
-      const res = await fetch('/api/mon-atelier', {
-        method: 'POST',
-        headers: {
-          Accept:        'application/json',
-          Authorization: `Bearer ${accesToken}`,
-          // NE PAS mettre Content-Type ici : le navigateur le gère automatiquement avec FormData
-        },
-        credentials: 'include',
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.errors) {
-          const mapped = {};
-          Object.keys(data.errors).forEach(k => { mapped[k] = data.errors[k][0]; });
-          setErrors(mapped);
-        } else {
-          setApiError(data.message ?? 'Une erreur est survenue');
-        }
-        return;
-      }
+      // POST /mon-atelier (FormData)
+      await atelierAPI.store(formData);  // ✅ atelierAPI.store() gère le token automatiquement
 
       setSuccess(true);
       setTimeout(() => navigate('/profile', { state: { atelierCreated: true } }), 2000);
 
-    } catch {
-      setApiError('Impossible de contacter le serveur. Vérifiez votre connexion.');
+    } catch (err) {
+      if (err.errors) {
+        const mapped = {};
+        Object.entries(err.errors).forEach(([k, msgs]) => {
+          mapped[k] = Array.isArray(msgs) ? msgs[0] : msgs;
+        });
+        setErrors(mapped);
+      } else {
+        setApiError(err.message || 'Impossible de contacter le serveur.');
+      }
     } finally {
       setLoading(false);
     }
@@ -244,7 +230,7 @@ export default function CreateAtelier() {
               </div>
             </div>
 
-            {/* Image principale — upload fichier (pas URL) */}
+            {/* Image principale */}
             <div>
               <label className="block mb-2 text-sm font-bold" style={{ color: '#2b2d42' }}>
                 Image principale <span className="font-normal text-gray-400">(optionnel)</span>

@@ -4,7 +4,7 @@ import {
   Store, MapPin, Briefcase, FileText, Image,
   ChevronLeft, Loader, CheckCircle, Trash2, AlertTriangle
 } from 'lucide-react';
-import { useAuth } from '../../components/Auth/AuthContext';
+import { atelierAPI } from '../../../../services/api';
 
 const DOMAINES = [
   'Plomberie', 'Électricité', 'Menuiserie', 'Peinture', 'Maçonnerie',
@@ -24,8 +24,7 @@ function StatusBadge({ status }) {
 }
 
 export default function EditAtelier() {
-  const navigate       = useNavigate();
-  const { accesToken } = useAuth();
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({
     nom:          '',
@@ -44,42 +43,31 @@ export default function EditAtelier() {
   const [showDelete,   setShowDelete]   = useState(false);
   const [deleting,     setDeleting]     = useState(false);
   const [statusBadge,  setStatusBadge]  = useState(null);
-  const [atelierId,    setAtelierId]    = useState(null);
 
-  // ── GET /api/mon-atelier
+  // ── GET /mon-atelier ───────────────────────────────────────
   useEffect(() => {
-    if (!accesToken) return;
     const fetchAtelier = async () => {
       setFetching(true);
       try {
-        const res = await fetch('/api/mon-atelier', {
-          headers: {
-            Accept:        'application/json',
-            Authorization: `Bearer ${accesToken}`,
-          },
-          credentials: 'include',
-        });
-        if (!res.ok) throw new Error('Atelier introuvable');
-        const data    = await res.json();
+        const data    = await atelierAPI.monAtelier();
         const atelier = data.atelier ?? data;
 
-        setAtelierId(atelier.id);
         setForm({
           nom:          atelier.nom          ?? '',
           domaine:      atelier.domaine      ?? '',
           localisation: atelier.localisation ?? '',
           description:  atelier.description  ?? '',
         });
-        setImagePreview(atelier.image_principale ?? null);
+        setImagePreview(atelier.image_url ?? atelier.image_principale ?? null);
         setStatusBadge(atelier.verification_status ?? null);
       } catch (e) {
-        setApiError(e.message);
+        setApiError(e.message || 'Atelier introuvable.');
       } finally {
         setFetching(false);
       }
     };
     fetchAtelier();
-  }, [accesToken]);
+  }, []);
 
   const validate = () => {
     const e = {};
@@ -92,7 +80,7 @@ export default function EditAtelier() {
     return e;
   };
 
-  // ── POST /api/mon-atelier/update (multipart)
+  // ── POST /mon-atelier/update (FormData) ───────────────────
   const handleSubmit = async () => {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
@@ -106,50 +94,32 @@ export default function EditAtelier() {
       formData.append('domaine',      form.domaine);
       formData.append('localisation', form.localisation.trim());
       formData.append('description',  form.description.trim());
-      if (imageFile) {
-        formData.append('image_principale', imageFile);
-      }
+      if (imageFile) formData.append('image_principale', imageFile);
 
-      const res = await fetch('/api/mon-atelier/update', {
-        method: 'POST',
-        headers: {
-          Accept:        'application/json',
-          Authorization: `Bearer ${accesToken}`,
-          // Pas de Content-Type : laissé au navigateur pour FormData
-        },
-        credentials: 'include',
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.errors) {
-          const mapped = {};
-          Object.keys(data.errors).forEach(k => { mapped[k] = data.errors[k][0]; });
-          setErrors(mapped);
-        } else {
-          setApiError(data.message ?? 'Une erreur est survenue');
-        }
-        return;
-      }
+      await atelierAPI.update(formData); // POST /mon-atelier/update
 
       setSuccess(true);
       setTimeout(() => navigate('/profile'), 2000);
 
-    } catch {
-      setApiError('Impossible de contacter le serveur.');
+    } catch (err) {
+      if (err.errors) {
+        const mapped = {};
+        Object.entries(err.errors).forEach(([k, v]) => {
+          mapped[k] = Array.isArray(v) ? v[0] : v;
+        });
+        setErrors(mapped);
+      } else {
+        setApiError(err.message || 'Une erreur est survenue.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Suppression — pas de route DELETE /api/mon-atelier dans le back
-  // On informe l'utilisateur (à implémenter côté back si nécessaire)
+  // ── Suppression — non disponible côté back ─────────────────
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      // Route non disponible dans le back actuel — adapter si ajoutée
       setApiError('La suppression d\'atelier n\'est pas encore disponible. Contactez un administrateur.');
       setShowDelete(false);
     } finally {
@@ -169,6 +139,7 @@ export default function EditAtelier() {
     setImagePreview(URL.createObjectURL(file));
   };
 
+  // ── États de rendu ─────────────────────────────────────────
   if (fetching) return (
     <div className="flex items-center justify-center min-h-screen">
       <Loader className="w-10 h-10 animate-spin" style={{ color: '#4a6fa5' }} />
@@ -329,7 +300,7 @@ export default function EditAtelier() {
               </div>
             </div>
 
-            {/* Image — upload fichier */}
+            {/* Image */}
             <div>
               <label className="block mb-2 text-sm font-bold" style={{ color: '#2b2d42' }}>
                 Image principale <span className="font-normal text-gray-400">(optionnel)</span>
@@ -342,8 +313,7 @@ export default function EditAtelier() {
               </label>
               {imagePreview && (
                 <div className="h-40 mt-3 overflow-hidden rounded-xl">
-                  <img src={imagePreview} alt="Aperçu"
-                    className="object-cover w-full h-full"
+                  <img src={imagePreview} alt="Aperçu" className="object-cover w-full h-full"
                     onError={(e) => { e.target.style.display = 'none'; }} />
                 </div>
               )}

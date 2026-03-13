@@ -2,10 +2,13 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../Clients/components/Auth/AuthContext';
 
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
-  const { user, accesToken } = useAuth();
+  const { user, token, loading } = useAuth();
+
+  // Attendre que le contexte soit hydraté (restauration depuis localStorage)
+  if (loading) return null;
 
   // Pas connecté → login
-  if (!accesToken || !user) {
+  if (!token || !user) {
     return <Navigate to="/login" replace />;
   }
 

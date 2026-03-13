@@ -1,43 +1,27 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { passwordAPI } from '../../../../services/api';
 
 export default function ForgotPassword() {
-  const [email, setEmail] = useState('');
+  const [email,   setEmail]   = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error,   setError]   = useState('');
   const [success, setSuccess] = useState(false);
 
+  // ── POST /auth/forgot-password ─────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!email) { setError('Email requis'); return; }
+    if (!email)                       { setError('Email requis'); return; }
     if (!/\S+@\S+\.\S+/.test(email)) { setError('Email invalide'); return; }
 
     setLoading(true);
     setError('');
 
     try {
-      // POST /auth/forgot-password
-      const response = await fetch(`${API_URL}/auth/forgot-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || `Erreur ${response.status}`);
-      }
-
+      await passwordAPI.forgotPassword({ email });
       setSuccess(true);
-
     } catch (err) {
       setError(err.message || "Erreur lors de l'envoi. Vérifiez l'email saisi.");
     } finally {
@@ -55,7 +39,7 @@ export default function ForgotPassword() {
             color: '#4a6fa5',
             border: '1px solid rgba(74, 111, 165, 0.2)'
           }}>
-            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#ff7e5f' }}></span>
+            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#ff7e5f' }} />
             Réinitialisation de mot de passe
           </span>
         </div>
@@ -91,17 +75,14 @@ export default function ForgotPassword() {
                   </label>
                   <div className="relative">
                     <Mail className="absolute w-5 h-5 -translate-y-1/2 left-3 top-1/2" style={{ color: '#ff7e5f' }} />
-                    <input
-                      type="email"
-                      value={email}
+                    <input type="email" value={email}
                       onChange={(e) => { setEmail(e.target.value); setError(''); }}
                       placeholder="exemple@email.com"
                       className="w-full py-3 pr-4 text-sm transition-all border rounded-lg outline-none pl-11 focus:ring-2"
                       style={{ borderColor: '#e9ecef', backgroundColor: '#f8f9fa', color: '#2b2d42' }}
-                      onFocus={(e) => e.target.style.borderColor = '#4a6fa5'}
-                      onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
-                      required
-                    />
+                      onFocus={(e)  => e.target.style.borderColor = '#4a6fa5'}
+                      onBlur={(e)   => e.target.style.borderColor = '#e9ecef'}
+                      required />
                   </div>
                 </div>
 
@@ -110,7 +91,7 @@ export default function ForgotPassword() {
                   style={{ background: 'linear-gradient(135deg, #4a6fa5, #3a5784)' }}>
                   {loading ? (
                     <div className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white rounded-full border-t-transparent animate-spin"></div>
+                      <div className="w-4 h-4 border-2 border-white rounded-full border-t-transparent animate-spin" />
                       Envoi en cours...
                     </div>
                   ) : 'Envoyer le lien de réinitialisation'}
@@ -118,9 +99,10 @@ export default function ForgotPassword() {
               </form>
 
               <div className="pt-5 mt-5 text-center border-t" style={{ borderColor: '#e9ecef' }}>
-                <Link to="/login" className="inline-flex items-center gap-2 text-sm font-medium transition-all hover:underline" style={{ color: '#4a6fa5' }}>
-                  <ArrowLeft className="w-4 h-4" />
-                  Retour à la connexion
+                <Link to="/login"
+                  className="inline-flex items-center gap-2 text-sm font-medium transition-all hover:underline"
+                  style={{ color: '#4a6fa5' }}>
+                  <ArrowLeft className="w-4 h-4" /> Retour à la connexion
                 </Link>
               </div>
             </>
