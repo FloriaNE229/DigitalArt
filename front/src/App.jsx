@@ -30,9 +30,9 @@ import EditProfile   from "./Clients/pages/Profile/EditProfile";
 // Atelier
 import CreateAtelier   from "./Clients/pages/Atelier/CreateAtelier";
 import EditAtelier     from "./Clients/pages/Atelier/EditAtelier";
-import GestionHoraires from "./Clients/pages/Atelier/GestionHoraires";
-import GestionOeuvres  from "./Clients/pages/Atelier/GestionOeuvres";
-import GestionOffres   from "./Clients/pages/Atelier/GestionOffres";
+import GestionHoraires from "./Clients/pages/Atelier/Gestionhoraires";
+import GestionOeuvres  from "./Clients/pages/Atelier/Gestionoeuvres";
+import GestionOffres   from "./Clients/pages/Atelier/Gestionoffres";
 
 // Reviews
 import WriteReview from "./Clients/pages/Reviews/WriteReview";
