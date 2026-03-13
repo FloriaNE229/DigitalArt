@@ -16,14 +16,16 @@ class ProfilController extends Controller
      */
     public function show(Request $request): JsonResponse
     {
-        $user = $request->user()->load('artisan.atelier.horaires', 'artisan.indisponibilites');
+        // On charge atelier + offres pour l'affichage du profil
+        // horaires est géré séparément via GET /api/horaires
+        $user = $request->user()->load('artisan.atelier.offres', 'artisan.atelier.avis');
 
         return response()->json(['user' => $user]);
     }
 
     /**
      * Mettre à jour les infos communes (nom, prénom, photo).
-     * PUT /api/profil
+     * POST /api/profil
      */
     public function update(Request $request): JsonResponse
     {
@@ -32,11 +34,10 @@ class ProfilController extends Controller
         $data = $request->validate([
             'nom'          => ['sometimes', 'string', 'max:100'],
             'prenom'       => ['sometimes', 'string', 'max:100'],
-            'photo_profil' => ['sometimes', 'image', 'max:2048'], // fichier image max 2MB
+            'photo_profil' => ['sometimes', 'image', 'max:2048'],
         ]);
 
         if ($request->hasFile('photo_profil')) {
-            // Supprimer l'ancienne photo
             if ($user->photo_profil) {
                 Storage::disk('public')->delete($user->photo_profil);
             }
@@ -47,7 +48,7 @@ class ProfilController extends Controller
 
         return response()->json([
             'message' => 'Profil mis à jour avec succès.',
-            'user'    => $user->fresh(),
+            'user'    => $user->fresh()->load('artisan.atelier'),
         ]);
     }
 
@@ -70,13 +71,12 @@ class ProfilController extends Controller
 
         $artisan->update($data);
 
-        // Mettre à jour l'atelier si des données atelier sont fournies
         if ($request->hasAny(['nom', 'description', 'localisation', 'domaine'])) {
             $atelierData = $request->validate([
-                'nom'         => ['sometimes', 'string', 'max:255'],
-                'description' => ['sometimes', 'string'],
-                'localisation'=> ['sometimes', 'string', 'max:255'],
-                'domaine'     => ['sometimes', 'string', 'max:150'],
+                'nom'          => ['sometimes', 'string', 'max:255'],
+                'description'  => ['sometimes', 'string'],
+                'localisation' => ['sometimes', 'string', 'max:255'],
+                'domaine'      => ['sometimes', 'string', 'max:150'],
             ]);
 
             if ($artisan->atelier) {
@@ -84,7 +84,6 @@ class ProfilController extends Controller
             }
         }
 
-        // Mettre à jour l'image principale de l'atelier
         if ($request->hasFile('image_principale') && $artisan->atelier) {
             $request->validate(['image_principale' => ['image', 'max:4096']]);
 
