@@ -78,7 +78,7 @@ Route::middleware('auth:sanctum', 'suspendu')->group(function () {
     Route::middleware('role:CLIENT')->group(function () {
 
         // Rendez-vous
-        Route::prefix('rendez-vous')->group(function () {
+        Route::prefix('rendez-vous-client')->group(function () {
             Route::get('/',                  [RendezVousController::class, 'index']);
             Route::post('/',                 [RendezVousController::class, 'store']);
             Route::get('{id}',               [RendezVousController::class, 'show']);
@@ -86,7 +86,7 @@ Route::middleware('auth:sanctum', 'suspendu')->group(function () {
         });
 
         // Services
-        Route::prefix('services')->group(function () {
+        Route::prefix('services-client')->group(function () {
             Route::get('/',                  [ServiceController::class, 'index']);
             Route::post('/',                 [ServiceController::class, 'store']);
             Route::get('{id}',               [ServiceController::class, 'show']);
@@ -157,14 +157,14 @@ Route::middleware('auth:sanctum', 'suspendu')->group(function () {
         });
 
         // Rendez-vous reçus
-        Route::prefix('rendez-vous')->group(function () {
+        Route::prefix('rendez-vous-artisan')->group(function () {
             Route::get('/',                  [RendezVousController::class, 'indexArtisan']);
             Route::patch('{id}/accepter',    [RendezVousController::class, 'accepter']);
             Route::patch('{id}/refuser',     [RendezVousController::class, 'refuser']);
         });
 
         // Services reçus
-        Route::prefix('services')->group(function () {
+        Route::prefix('services-artisan')->group(function () {
             Route::get('/',                  [ServiceController::class, 'indexArtisan']);
             Route::get('{id}',               [ServiceController::class, 'show']);
             Route::patch('{id}/accepter',    [ServiceController::class, 'accepter']);

@@ -279,26 +279,26 @@ export const avisAPI = {
 export const rendezVousAPI = {
   // ── Client ──────────────────────────────────────────────
   /** Mes rendez-vous */
-  index: () => get("/rendez-vous"),
+  index: () => get("/rendez-vous-client"),
 
   /** Prendre un rendez-vous */
-  store: (data) => post("/rendez-vous", data),
+  store: (data) => post("/rendez-vous-client", data),
 
   /** Détail d'un rendez-vous */
-  show: (id) => get(`/rendez-vous/${id}`),
+  show: (id) => get(`/rendez-vous-client/${id}`),
 
   /** Annuler un rendez-vous */
-  annuler: (id) => patch(`/rendez-vous/${id}/annuler`),
+  annuler: (id) => patch(`/rendez-vous-client/${id}/annuler`),
 
   // ── Artisan ─────────────────────────────────────────────
   /** Rendez-vous reçus */
-  indexArtisan: () => get("/rendez-vous"),
+  indexArtisan: () => get("/rendez-vous-artisan"),
 
   /** Accepter un rendez-vous */
-  accepter: (id) => patch(`/rendez-vous/${id}/accepter`),
+  accepter: (id) => patch(`/rendez-vous-artisan/${id}/accepter`),
 
   /** Refuser un rendez-vous */
-  refuser: (id) => patch(`/rendez-vous/${id}/refuser`),
+  refuser: (id) => patch(`/rendez-vous-artisan/${id}/refuser`),
 };
 
 
@@ -309,29 +309,29 @@ export const rendezVousAPI = {
 export const serviceAPI = {
   // ── Client ──────────────────────────────────────────────
   /** Mes services */
-  index: () => get("/services"),
+  index: () => get("/services-client"),
 
   /** Commander un service */
-  store: (data) => post("/services", data),
+  store: (data) => post("/services-client", data),
 
   /** Détail d'un service */
-  show: (id) => get(`/services/${id}`),
+  show: (id) => get(`/services-artisan/${id}`),
 
   /** Annuler un service */
-  annuler: (id) => patch(`/services/${id}/annuler`),
+  annuler: (id) => patch(`/services-client/${id}/annuler`),
 
   // ── Artisan ─────────────────────────────────────────────
   /** Services reçus */
-  indexArtisan: () => get("/services"),
+  indexArtisan: () => get("/services-artisan"),
 
   /** Accepter un service */
-  accepter: (id) => patch(`/services/${id}/accepter`),
+  accepter: (id) => patch(`/services-artisan/${id}/accepter`),
 
   /** Refuser un service */
-  refuser: (id) => patch(`/services/${id}/refuser`),
+  refuser: (id) => patch(`/services-artisan/${id}/refuser`),
 
   /** Terminer un service */
-  terminer: (id) => patch(`/services/${id}/terminer`),
+  terminer: (id) => patch(`/services-artisan/${id}/terminer`),
 };
 
 
